@@ -1,0 +1,32 @@
+{
+  "name": "@chernozem/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b && vite build",
+    "dev": "vite --host 0.0.0.0",
+    "typecheck": "tsc -b --pretty false",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@chernozem/contracts": "workspace:*",
+    "@mapbox/mapbox-gl-draw": "^1.5.1",
+    "@phosphor-icons/react": "^2.1.10",
+    "@turf/area": "^7.3.5",
+    "@turf/boolean-valid": "^7.3.5",
+    "@turf/helpers": "^7.3.5",
+    "maplibre-gl": "^5.17.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/mapbox__mapbox-gl-draw": "^1.4.9",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "tailwindcss": "^4.2.1",
+    "vite": "^8.0.2"
+  }
+}
