@@ -54,7 +54,7 @@ export default function App() {
   useEffect(() => {
     fetchFields().then((items) => {
       setFields(items);
-      setSelectedFieldId(items[0]?.id ?? null);
+      setSelectedFieldId(null);
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "农田列表加载失败。"))
       .finally(() => setLoadingFields(false));
   }, []);
