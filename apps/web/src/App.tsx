@@ -92,11 +92,17 @@ export default function App() {
   }, [fields, query]);
 
   const selectField = useCallback((fieldId: string) => {
+    if (fieldId === selectedFieldId) {
+      setSelectedFieldId(null);
+      setTask(null);
+      setDetailPanelOpen(false);
+      return;
+    }
     setSelectedFieldId(fieldId);
     setTask(null);
     setError(null);
     setDetailPanelOpen(true);
-  }, []);
+  }, [selectedFieldId]);
 
   const startAnalysis = async () => {
     if (!selectedField) return;
