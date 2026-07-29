@@ -44,7 +44,8 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [locateSignal, setLocateSignal] = useState(0);
   const [fieldPanelOpen, setFieldPanelOpen] = useState(true);
-  const [analysisPanelOpen, setAnalysisPanelOpen] = useState(true);
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
+  const [leftPanelMode, setLeftPanelMode] = useState<"fields" | "analysis">("fields");
   const [fieldEditorOpen, setFieldEditorOpen] = useState(false);
   const [editingField, setEditingField] = useState<FieldSummary | null>(null);
   const [draftBoundary, setDraftBoundary] = useState<FieldSummary["boundary"] | null>(null);
@@ -94,7 +95,7 @@ export default function App() {
     setSelectedFieldId(fieldId);
     setTask(null);
     setError(null);
-    setAnalysisPanelOpen(true);
+    setDetailPanelOpen(true);
   }, []);
 
   const startAnalysis = async () => {
@@ -107,7 +108,7 @@ export default function App() {
     }
   };
 
-  const openFieldEditor = (field: FieldSummary | null = null) => { setEditingField(field); setDraftBoundary(field?.boundary ?? null); setFieldEditorOpen(true); setAnalysisPanelOpen(true); setError(null); };
+  const openFieldEditor = (field: FieldSummary | null = null) => { setEditingField(field); setDraftBoundary(field?.boundary ?? null); setFieldEditorOpen(true); setDetailPanelOpen(true); setError(null); };
   const saveField = async (input: FieldInput) => {
     const field = editingField ? await updateField(editingField.id, input) : await createField(input);
     setFields((current) => editingField ? current.map((item) => item.id === field.id ? field : item) : [...current, field]);
@@ -139,8 +140,8 @@ export default function App() {
         <div className="nav-brand"><span><Leaf size={22} weight="fill" /></span><div><strong>黑土智管</strong><small>遥感农情平台</small></div></div>
         <div className="nav-menu">
           <button><SquaresFour size={20} /><span>工作总览</span></button>
-          <button className="is-active" onClick={() => setFieldPanelOpen(true)}><Farm size={20} weight="fill" /><span>地块管理</span></button>
-          <button onClick={() => setAnalysisPanelOpen(true)}><ChartLineUp size={20} /><span>农情分析</span></button>
+          <button className={leftPanelMode === "fields" ? "is-active" : ""} onClick={() => { setLeftPanelMode("fields"); setFieldPanelOpen(true); }}><Farm size={20} weight="fill" /><span>地块管理</span></button>
+          <button className={leftPanelMode === "analysis" ? "is-active" : ""} onClick={() => { setLeftPanelMode("analysis"); setFieldPanelOpen(true); }}><ChartLineUp size={20} /><span>农情分析</span></button>
           <button><ListChecks size={20} /><span>分析记录</span></button>
         </div>
         <div className="nav-bottom"><button><GearSix size={20} /><span>设置</span></button><div className="account-mark">辽</div><span className="account-name">铁岭示范账户</span></div>
@@ -150,7 +151,8 @@ export default function App() {
         <MapCanvas fields={fields} selectedFieldId={selectedFieldId} findings={task?.findings ?? []} locateSignal={locateSignal} onSelectField={selectField} onLocationError={setError} drawing={fieldEditorOpen} draftBoundary={draftBoundary} onBoundaryDrawn={setDraftBoundary} />
 
         <aside className={`field-drawer ${fieldPanelOpen ? "is-open" : ""}`}>
-          <div className="drawer-head"><div><h1>地块管理</h1><span>{fields.length} 块农田</span></div><button className="plain-icon" title="收起地块列表" onClick={() => setFieldPanelOpen(false)}><CaretLeft size={19} /></button></div>
+          <div className="drawer-head"><div><h1>{leftPanelMode === "fields" ? "地块管理" : "农情分析"}</h1><span>{leftPanelMode === "fields" ? `${fields.length} 块农田` : selectedField?.name ?? "选择地块"}</span></div><button className="plain-icon" title={leftPanelMode === "fields" ? "收起地块列表" : "返回地块列表"} onClick={() => leftPanelMode === "fields" ? setFieldPanelOpen(false) : setLeftPanelMode("fields")}>{leftPanelMode === "fields" ? <CaretLeft size={19} /> : <CaretLeft size={19} />}</button></div>
+          {leftPanelMode === "fields" ? <>
           <div className="field-tools"><label><MagnifyingGlass size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索地块名称或村庄" /></label><div className="field-tabs"><button className="is-active">全部</button><button>玉米</button><button>其他</button></div></div>
           <div className="field-list-new">
             {loadingFields ? <FieldSkeleton /> : null}
@@ -160,6 +162,7 @@ export default function App() {
             </button>)}
           </div>
           <div className="field-actions"><button className="drawer-primary" onClick={() => openFieldEditor()}><Plus size={18} />新增地块</button><button className="import-button" onClick={() => importInputRef.current?.click()}>导入 GeoJSON</button><input ref={importInputRef} type="file" accept="application/geo+json,application/json,.geojson" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void importGeoJson(file); event.currentTarget.value = ""; }} /></div>
+          </> : <LeftAnalysisPanel field={selectedField} task={task} objective={objective} period={period} planetStatus={planetStatus} loadingPlanetStatus={loadingPlanetStatus} onObjectiveChange={setObjective} onPeriodChange={setPeriod} onStart={startAnalysis} onNewAnalysis={() => setTask(null)} />}
         </aside>
         {!fieldPanelOpen ? <button className="drawer-toggle left" title="展开地块列表" onClick={() => setFieldPanelOpen(true)}><CaretRight size={18} /></button> : null}
 
@@ -167,21 +170,18 @@ export default function App() {
           <span className={`data-badge ${planetStatus?.planetScopeAvailable ? "is-connected" : "is-pending"}`}>
             {loadingPlanetStatus ? "正在检查 Planet" : planetStatus?.planetScopeAvailable ? "PlanetScope 已连接" : "PlanetScope 未就绪"}
           </span>
-          {selectedField ? <button onClick={() => setAnalysisPanelOpen(true)}><MapPin size={16} weight="fill" /><strong>{selectedField.name}</strong><span>{selectedField.areaHa} 公顷</span></button> : null}
+          {selectedField ? <button onClick={() => setDetailPanelOpen(true)}><MapPin size={16} weight="fill" /><strong>{selectedField.name}</strong><span>{selectedField.areaHa} 公顷</span></button> : null}
         </div>
         <div className="map-controls"><button title="回到所选地块" onClick={() => selectedFieldId && selectField(selectedFieldId)}><ArrowClockwise size={19} /></button><button title="定位当前位置" onClick={() => setLocateSignal((value) => value + 1)}><Crosshair size={19} /></button></div>
         {fields.length > 0 ? <div className="map-legend-new"><span><i className="field-key" />地块边界</span>{task?.status === "completed" ? <span><i className="watch-key" />近期下降区</span> : null}</div> : null}
 
-        <aside className={`analysis-drawer ${analysisPanelOpen ? "is-open" : ""}`}>
-          <div className="drawer-head"><div><span className="section-kicker">农情分析</span><h2>{selectedField?.name ?? "选择地块"}</h2></div><button className="plain-icon" title="关闭分析面板" onClick={() => setAnalysisPanelOpen(false)}><X size={19} /></button></div>
+        <aside className={`analysis-drawer ${detailPanelOpen ? "is-open" : ""}`}>
+          <div className="drawer-head"><div><span className="section-kicker">地块详情</span><h2>{selectedField?.name ?? "选择地块"}</h2></div><button className="plain-icon" title="关闭地块详情" onClick={() => setDetailPanelOpen(false)}><X size={19} /></button></div>
           {error ? <div className="error-banner"><WarningCircle size={18} weight="fill" /><span>{error}</span><button onClick={() => setError(null)}>关闭</button></div> : null}
           {fieldEditorOpen ? <FieldEditor field={editingField} boundary={draftBoundary} onCancel={() => { setFieldEditorOpen(false); setEditingField(null); setDraftBoundary(null); }} onSave={saveField} /> : null}
           {!fieldEditorOpen && !selectedField ? <NoFieldSelected /> : null}
-          {!fieldEditorOpen && selectedField && !task ? <TaskComposer field={selectedField} objective={objective} period={period} planetStatus={planetStatus} loadingPlanetStatus={loadingPlanetStatus} onObjectiveChange={setObjective} onPeriodChange={setPeriod} onStart={startAnalysis} onEdit={() => openFieldEditor(selectedField)} onArchive={() => void archiveSelectedField()} /> : null}
-          {!fieldEditorOpen && selectedField && task?.status === "running" ? <TaskProgress field={selectedField} task={task} /> : null}
-          {!fieldEditorOpen && selectedField && task?.status === "completed" ? <TaskResult field={selectedField} task={task} onNewAnalysis={() => setTask(null)} /> : null}
+          {!fieldEditorOpen && selectedField ? <FieldDetails field={selectedField} planetStatus={planetStatus} loadingPlanetStatus={loadingPlanetStatus} onEdit={() => openFieldEditor(selectedField)} onArchive={() => void archiveSelectedField()} onAnalyze={() => { setLeftPanelMode("analysis"); setFieldPanelOpen(true); setDetailPanelOpen(false); }} /> : null}
         </aside>
-        {!analysisPanelOpen ? <button className="analysis-fab" onClick={() => setAnalysisPanelOpen(true)}><Sparkle size={19} weight="fill" /><span>分析这块田</span></button> : null}
       </main>
     </div>
   );
@@ -194,11 +194,22 @@ function FieldEditor({ field, boundary, onCancel, onSave }: { field: FieldSummar
   return <div className="panel-scroll-new field-editor"><div className="editor-hint"><strong>{field ? "编辑地块边界" : "在地图上绘制地块"}</strong><span>单击落点，双击结束；选中边界后可拖动顶点，右上角垃圾桶可删除。</span></div><section className="form-section-new"><label>地块名称</label><input value={name} onChange={(event) => setName(event.target.value)} placeholder="例如：北田 01" /></section><section className="form-section-new"><label>作物</label><select value={crop} onChange={(event) => setCrop(event.target.value as FieldInput["crop"])}><option value="corn">玉米</option><option value="soybean">大豆</option><option value="rice">水稻</option></select></section><section className="form-section-new"><label>种植季年份</label><input type="number" value={seasonYear} min="2000" max="2100" onChange={(event) => setSeasonYear(Number(event.target.value))} /></section><section className="form-section-new optional-fields"><label>播种日期和品种（可选）</label><input type="date" value={plantingDate} onChange={(event) => setPlantingDate(event.target.value)} /><input value={variety} onChange={(event) => setVariety(event.target.value)} placeholder="品种" /></section>{message ? <p className="field-error">{message}</p> : null}<div className="drawer-footer split"><button className="secondary-button" onClick={onCancel}>取消</button><button className="drawer-primary" disabled={saving || !boundary || !name.trim()} onClick={() => void submit()}>{saving ? "正在保存" : field ? "保存修改" : "保存地块"}</button></div></div>;
 }
 
-function TaskComposer({ field, objective, period, planetStatus, loadingPlanetStatus, onObjectiveChange, onPeriodChange, onStart, onEdit, onArchive }: { field: FieldSummary; objective: AnalysisObjective; period: "last_30_days" | "this_season"; planetStatus: PlanetAccessStatus | null; loadingPlanetStatus: boolean; onObjectiveChange: (value: AnalysisObjective) => void; onPeriodChange: (value: "last_30_days" | "this_season") => void; onStart: () => void; onEdit: () => void; onArchive: () => void }) {
+function LeftAnalysisPanel({ field, task, objective, period, planetStatus, loadingPlanetStatus, onObjectiveChange, onPeriodChange, onStart, onNewAnalysis }: { field: FieldSummary | null; task: AnalysisTask | null; objective: AnalysisObjective; period: "last_30_days" | "this_season"; planetStatus: PlanetAccessStatus | null; loadingPlanetStatus: boolean; onObjectiveChange: (value: AnalysisObjective) => void; onPeriodChange: (value: "last_30_days" | "this_season") => void; onStart: () => void; onNewAnalysis: () => void }) {
+  if (!field) return <NoFieldSelected />;
+  if (!task) return <TaskComposer field={field} objective={objective} period={period} planetStatus={planetStatus} loadingPlanetStatus={loadingPlanetStatus} onObjectiveChange={onObjectiveChange} onPeriodChange={onPeriodChange} onStart={onStart} />;
+  if (task.status === "running") return <TaskProgress field={field} task={task} />;
+  return <TaskResult field={field} task={task} onNewAnalysis={onNewAnalysis} />;
+}
+
+function FieldDetails({ field, planetStatus, loadingPlanetStatus, onEdit, onArchive, onAnalyze }: { field: FieldSummary; planetStatus: PlanetAccessStatus | null; loadingPlanetStatus: boolean; onEdit: () => void; onArchive: () => void; onAnalyze: () => void }) {
+  return <div className="panel-scroll-new field-details"><section className="detail-hero"><div><strong>{field.name}</strong><span>{cropName(field.crop)} · {field.seasonYear} 种植季</span></div><p>{field.plantingDate ? `播种日期：${field.plantingDate}` : "未记录播种日期"}</p></section><section className="detail-metrics"><div><span>地块面积</span><strong>{field.areaHa.toFixed(2)} 公顷</strong></div><div><span>边界状态</span><strong>已保存</strong></div><div><span>品种</span><strong>{field.variety ?? "未记录"}</strong></div></section><PlanetSourcePanel status={planetStatus} loading={loadingPlanetStatus} /><div className="detail-actions"><button className="detail-edit" onClick={onEdit}><PencilSimple size={17} />编辑地块</button><button className="detail-archive" title="归档地块" onClick={onArchive}><Archive size={17} /></button></div><div className="drawer-footer"><button className="drawer-primary" onClick={onAnalyze}><Sparkle size={18} weight="fill" />分析这块田</button></div></div>;
+}
+
+function TaskComposer({ field, objective, period, planetStatus, loadingPlanetStatus, onObjectiveChange, onPeriodChange, onStart }: { field: FieldSummary; objective: AnalysisObjective; period: "last_30_days" | "this_season"; planetStatus: PlanetAccessStatus | null; loadingPlanetStatus: boolean; onObjectiveChange: (value: AnalysisObjective) => void; onPeriodChange: (value: "last_30_days" | "this_season") => void; onStart: () => void }) {
   const supported = field.crop === "corn";
   return <div className="panel-scroll-new">
     <div className="field-summary"><div><span>地块编号</span><strong>{field.code}</strong></div><div><span>种植作物</span><strong>{cropName(field.crop)}</strong></div><div><span>地块面积</span><strong>{field.areaHa} 公顷</strong></div></div>
-    <div className="field-management"><button onClick={onEdit}><PencilSimple size={15} />编辑地块</button><button onClick={onArchive}><Archive size={15} />归档</button></div><PlanetSourcePanel status={planetStatus} loading={loadingPlanetStatus} />
+    <PlanetSourcePanel status={planetStatus} loading={loadingPlanetStatus} />
     <section className="form-section-new"><label htmlFor="period">分析时间</label><select id="period" value={period} onChange={(event) => onPeriodChange(event.target.value as typeof period)}><option value="last_30_days">最近 30 天</option><option value="this_season">本种植季</option></select></section>
     <section className="form-section-new"><label>分析目标</label><div className="objective-grid">{objectives.map((item) => <button key={item.value} className={item.value === objective ? "is-active" : ""} onClick={() => onObjectiveChange(item.value)}>{item.label}<i /></button>)}</div></section>
     {!supported ? <p className="field-error">首版专项分析目前仅支持玉米。</p> : null}
