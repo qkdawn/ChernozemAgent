@@ -34,6 +34,7 @@ export function MapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
+  const drawControlVisibleRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
@@ -60,7 +61,6 @@ export function MapCanvas({
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     const draw = new MapboxDraw({ displayControlsDefault: false, controls: { polygon: true, trash: true }, defaultMode: "simple_select" });
-    map.addControl(draw as unknown as maplibregl.IControl, "top-right");
     drawRef.current = draw;
     const notifyBoundary = () => {
       const feature = draw.getAll().features[0];
@@ -129,9 +129,14 @@ export function MapCanvas({
   }, []);
 
   useEffect(() => {
+    const map = mapRef.current;
     const draw = drawRef.current;
-    if (!draw) return;
+    if (!map || !draw) return;
     if (drawing) {
+      if (!drawControlVisibleRef.current) {
+        map.addControl(draw as unknown as maplibregl.IControl, "top-right");
+        drawControlVisibleRef.current = true;
+      }
       if (draftBoundary && draw.getAll().features.length === 0) {
         draw.add({ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [draftBoundary.map((point) => [point.longitude, point.latitude])] } });
         draw.changeMode("simple_select");
@@ -140,9 +145,13 @@ export function MapCanvas({
       }
       return;
     }
+    if (drawControlVisibleRef.current) {
+      map.removeControl(draw as unknown as maplibregl.IControl);
+      drawControlVisibleRef.current = false;
+    }
     draw.deleteAll();
     draw.changeMode("simple_select");
-  }, [drawing, draftBoundary]);
+  }, [drawing, draftBoundary, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;
