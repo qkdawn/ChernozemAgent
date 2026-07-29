@@ -19,6 +19,17 @@ interface MapCanvasProps {
 const FIELD_SOURCE = "fields";
 const FINDING_SOURCE = "findings";
 const SATELLITE_SOURCE = "satellite-basemap";
+const drawTheme = (MapboxDraw as unknown as { lib: { theme: Array<Record<string, unknown>> } }).lib.theme;
+const mapLibreDrawStyles = drawTheme.map((style) => {
+  if (style.id !== "gl-draw-lines") return style;
+  return {
+    ...style,
+    paint: {
+      ...(style.paint as Record<string, unknown>),
+      "line-dasharray": ["case", ["==", ["get", "active"], "true"], ["literal", [0.2, 2]], ["literal", [2, 0]]],
+    },
+  };
+});
 
 export function MapCanvas({
   fields,
@@ -34,7 +45,6 @@ export function MapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const drawRef = useRef<MapboxDraw | null>(null);
-  const drawControlVisibleRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
@@ -60,8 +70,14 @@ export function MapCanvas({
     });
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
-    const draw = new MapboxDraw({ displayControlsDefault: false, controls: { polygon: true, trash: true }, defaultMode: "simple_select" });
+    const draw = new MapboxDraw({
+      displayControlsDefault: false,
+      controls: { polygon: true, trash: true },
+      defaultMode: "simple_select",
+      styles: mapLibreDrawStyles,
+    });
     drawRef.current = draw;
+    map.addControl(draw as unknown as maplibregl.IControl, "top-right");
     const notifyBoundary = () => {
       const feature = draw.getAll().features[0];
       if (!feature || feature.geometry.type !== "Polygon") return onBoundaryDrawn(null);
@@ -133,10 +149,6 @@ export function MapCanvas({
     const draw = drawRef.current;
     if (!map || !draw) return;
     if (drawing) {
-      if (!drawControlVisibleRef.current) {
-        map.addControl(draw as unknown as maplibregl.IControl, "top-right");
-        drawControlVisibleRef.current = true;
-      }
       if (draftBoundary && draw.getAll().features.length === 0) {
         draw.add({ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [draftBoundary.map((point) => [point.longitude, point.latitude])] } });
         draw.changeMode("simple_select");
@@ -144,10 +156,6 @@ export function MapCanvas({
         draw.changeMode("draw_polygon");
       }
       return;
-    }
-    if (drawControlVisibleRef.current) {
-      map.removeControl(draw as unknown as maplibregl.IControl);
-      drawControlVisibleRef.current = false;
     }
     draw.deleteAll();
     draw.changeMode("simple_select");
@@ -209,7 +217,7 @@ export function MapCanvas({
     );
   }, [locateSignal, onLocationError]);
 
-  return <div ref={containerRef} className="h-full w-full" aria-label="农田地图" />;
+  return <div ref={containerRef} className={`h-full w-full map-canvas${drawing ? " is-drawing" : ""}`} aria-label="农田地图" />;
 }
 
 function fieldsGeoJson(fields: FieldSummary[]) {
