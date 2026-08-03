@@ -39,9 +39,6 @@ button:disabled { cursor: not-allowed; }
 .field-tools { padding: 14px 16px 12px; border-bottom: 1px solid #e2e5e3; }
 .field-tools > label { display: flex; height: 40px; align-items: center; gap: 8px; padding: 0 11px; color: #929a95; border: 1px solid #d5dad7; border-radius: 5px; background: #fff; }
 .field-tools input { min-width: 0; flex: 1; border: 0; outline: 0; color: #272c29; font-size: 12px; }
-.field-tabs { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; margin-top: 11px; }
-.field-tabs button { height: 30px; color: #5f6863; border: 1px solid transparent; border-radius: 4px; background: #eaedeb; font-size: 11px; }
-.field-tabs button.is-active { color: #269d54; border-color: #59c77e; background: #e9f7ee; font-weight: 700; }
 .field-list-new, .panel-scroll-new { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #bbc2bd transparent; }
 .field-list-new { padding: 12px; }
 .field-card { width: 100%; margin-bottom: 9px; padding: 14px; color: #252a27; text-align: left; border: 1px solid #d9dedb; border-radius: 6px; background: #fff; transition: border-color .2s ease, background .2s ease, transform .2s ease; }

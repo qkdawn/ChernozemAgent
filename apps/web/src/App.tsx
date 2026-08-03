@@ -159,7 +159,7 @@ export default function App() {
         <aside className={`field-drawer ${fieldPanelOpen ? "is-open" : ""}`}>
           <div className="drawer-head"><div><h1>{leftPanelMode === "fields" ? "地块管理" : "农情分析"}</h1><span>{leftPanelMode === "fields" ? `${fields.length} 块农田` : selectedField?.name ?? "选择地块"}</span></div><button className="plain-icon" title={leftPanelMode === "fields" ? "收起地块列表" : "返回地块列表"} onClick={() => leftPanelMode === "fields" ? setFieldPanelOpen(false) : setLeftPanelMode("fields")}>{leftPanelMode === "fields" ? <CaretLeft size={19} /> : <CaretLeft size={19} />}</button></div>
           {leftPanelMode === "fields" ? <>
-          <div className="field-tools"><label><MagnifyingGlass size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索地块名称或村庄" /></label><div className="field-tabs"><button className="is-active">全部</button><button>玉米</button><button>其他</button></div></div>
+          <div className="field-tools"><label><MagnifyingGlass size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索地块名称或村庄" /></label></div>
           <div className="field-list-new">
             {loadingFields ? <FieldSkeleton /> : null}
             {!loadingFields && filteredFields.length === 0 ? <div className="empty-state">没有找到匹配地块</div> : null}
