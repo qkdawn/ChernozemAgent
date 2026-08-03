@@ -1,4 +1,4 @@
-import type { AnalysisObjective, AnalysisTask, FieldInput, FieldSummary, PlanetAccessStatus } from "@chernozem/contracts";
+import type { AnalysisObjective, AnalysisTask, FieldHistory, FieldInput, FieldSummary, PlanetAccessStatus } from "@chernozem/contracts";
 import { ArrowClockwiseIcon as ArrowClockwise } from "@phosphor-icons/react/dist/icons/ArrowClockwise";
 import { ArchiveIcon as Archive } from "@phosphor-icons/react/dist/icons/Archive";
 import { CaretLeftIcon as CaretLeft } from "@phosphor-icons/react/dist/icons/CaretLeft";
@@ -21,7 +21,7 @@ import { WarningCircleIcon as WarningCircle } from "@phosphor-icons/react/dist/i
 import { XIcon as X } from "@phosphor-icons/react/dist/icons/X";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { archiveField, createField, createTask, fetchFields, fetchPlanetAccessStatus, fetchTask, importFields, updateField } from "./api.js";
+import { archiveField, createField, createTask, fetchFieldHistory, fetchFields, fetchPlanetAccessStatus, fetchTask, importFields, updateField } from "./api.js";
 import { MapCanvas } from "./MapCanvas.js";
 
 const objectives: Array<{ value: AnalysisObjective; label: string }> = [
@@ -34,6 +34,7 @@ const objectives: Array<{ value: AnalysisObjective; label: string }> = [
 export default function App() {
   const [fields, setFields] = useState<FieldSummary[]>([]);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [fieldHistory, setFieldHistory] = useState<FieldHistory | null>(null);
   const [objective, setObjective] = useState<AnalysisObjective>("recent_change");
   const [period, setPeriod] = useState<"last_30_days" | "this_season">("last_30_days");
   const [task, setTask] = useState<AnalysisTask | null>(null);
@@ -58,6 +59,14 @@ export default function App() {
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "农田列表加载失败。"))
       .finally(() => setLoadingFields(false));
   }, []);
+
+  useEffect(() => {
+    if (!selectedFieldId) {
+      setFieldHistory(null);
+      return;
+    }
+    fetchFieldHistory(selectedFieldId).then(setFieldHistory).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "地块历史加载失败。"));
+  }, [selectedFieldId]);
 
   useEffect(() => {
     fetchPlanetAccessStatus()
@@ -119,6 +128,7 @@ export default function App() {
     const field = editingField ? await updateField(editingField.id, input) : await createField(input);
     setFields((current) => editingField ? current.map((item) => item.id === field.id ? field : item) : [...current, field]);
     setSelectedFieldId(field.id);
+    void fetchFieldHistory(field.id).then(setFieldHistory).catch(() => undefined);
     setFieldEditorOpen(false);
     setEditingField(null);
     setDraftBoundary(null);
@@ -186,7 +196,7 @@ export default function App() {
           {error ? <div className="error-banner"><WarningCircle size={18} weight="fill" /><span>{error}</span><button onClick={() => setError(null)}>关闭</button></div> : null}
           {fieldEditorOpen ? <FieldEditor field={editingField} boundary={draftBoundary} onCancel={() => { setFieldEditorOpen(false); setEditingField(null); setDraftBoundary(null); }} onSave={saveField} /> : null}
           {!fieldEditorOpen && !selectedField ? <NoFieldSelected /> : null}
-          {!fieldEditorOpen && selectedField ? <FieldDetails field={selectedField} planetStatus={planetStatus} loadingPlanetStatus={loadingPlanetStatus} onEdit={() => openFieldEditor(selectedField)} onArchive={() => void archiveSelectedField()} /> : null}
+          {!fieldEditorOpen && selectedField ? <FieldDetails field={selectedField} history={fieldHistory} planetStatus={planetStatus} loadingPlanetStatus={loadingPlanetStatus} onEdit={() => openFieldEditor(selectedField)} onArchive={() => void archiveSelectedField()} /> : null}
         </aside>
       </main>
     </div>
@@ -207,8 +217,8 @@ function LeftAnalysisPanel({ field, task, objective, period, planetStatus, loadi
   return <TaskResult field={field} task={task} onNewAnalysis={onNewAnalysis} />;
 }
 
-function FieldDetails({ field, planetStatus, loadingPlanetStatus, onEdit, onArchive }: { field: FieldSummary; planetStatus: PlanetAccessStatus | null; loadingPlanetStatus: boolean; onEdit: () => void; onArchive: () => void }) {
-  return <div className="panel-scroll-new field-details"><section className="detail-hero"><span className="detail-eyebrow">基本信息</span><div><strong>{field.name}</strong><span>{cropName(field.crop)} · {field.seasonYear} 种植季</span></div><p>{field.plantingDate ? `播种日期：${field.plantingDate}` : "未记录播种日期"}</p></section><section className="detail-metrics"><div><span>地块面积</span><strong>{field.areaHa.toFixed(2)} 公顷</strong></div><div><span>边界状态</span><strong>已保存</strong></div><div><span>品种</span><strong>{field.variety ?? "未记录"}</strong></div></section><PlanetSourcePanel status={planetStatus} loading={loadingPlanetStatus} /><section className="detail-management"><span>地块管理</span><div className="detail-actions"><button className="detail-edit" onClick={onEdit}><PencilSimple size={17} />编辑地块</button><button className="detail-archive" title="归档地块" onClick={onArchive}><Archive size={17} /></button></div></section></div>;
+function FieldDetails({ field, history, planetStatus, loadingPlanetStatus, onEdit, onArchive }: { field: FieldSummary; history: FieldHistory | null; planetStatus: PlanetAccessStatus | null; loadingPlanetStatus: boolean; onEdit: () => void; onArchive: () => void }) {
+  return <div className="panel-scroll-new field-details"><section className="detail-hero"><span className="detail-eyebrow">基本信息</span><div><strong>{field.name}</strong><span>{cropName(field.crop)} · {field.seasonYear} 种植季</span></div><p>{field.plantingDate ? `播种日期：${field.plantingDate}` : "未记录播种日期"}</p></section><section className="detail-metrics"><div><span>地块面积</span><strong>{field.areaHa.toFixed(2)} 公顷</strong></div><div><span>边界版本</span><strong>V{field.boundaryVersion}</strong></div><div><span>品种</span><strong>{field.variety ?? "未记录"}</strong></div></section><section className="detail-history"><span>地块档案</span><div><strong>{history ? `${history.seasons.length} 个种植季` : "正在加载"}</strong><small>{history ? `边界已保存 ${history.boundaryVersions.length} 个版本` : ""}</small></div></section><PlanetSourcePanel status={planetStatus} loading={loadingPlanetStatus} /><section className="detail-management"><span>地块管理</span><div className="detail-actions"><button className="detail-edit" onClick={onEdit}><PencilSimple size={17} />编辑地块</button><button className="detail-archive" title="归档地块" onClick={onArchive}><Archive size={17} /></button></div></section></div>;
 }
 
 function TaskComposer({ field, objective, period, planetStatus, loadingPlanetStatus, onObjectiveChange, onPeriodChange, onStart }: { field: FieldSummary; objective: AnalysisObjective; period: "last_30_days" | "this_season"; planetStatus: PlanetAccessStatus | null; loadingPlanetStatus: boolean; onObjectiveChange: (value: AnalysisObjective) => void; onPeriodChange: (value: "last_30_days" | "this_season") => void; onStart: () => void }) {

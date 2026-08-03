@@ -29,6 +29,12 @@ export function buildApp(options: BuildAppOptions = {}) {
 
   app.get("/api/v1/fields", async () => ({ fields: await fieldStore.list() }));
 
+  app.get<{ Params: { id: string } }>("/api/v1/fields/:id/history", async (request, reply) => {
+    const history = await fieldStore.history(request.params.id);
+    if (!history) return reply.code(404).send({ code: "field_not_found", message: "没有找到该农田。" });
+    return { history };
+  });
+
   app.post<{ Body: FieldInput }>("/api/v1/fields", async (request, reply) => {
     try {
       return reply.code(201).send({ field: await fieldStore.create(validateFieldInput(request.body)) });

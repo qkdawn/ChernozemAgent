@@ -70,6 +70,23 @@ describe("analysis API", () => {
     expect(updated.statusCode).toBe(200);
     expect(updated.json().field).toMatchObject({ name: "北田 02", plantingDate: "2026-05-04", variety: "先玉 335" });
 
+    const nextSeason = await app.inject({ method: "PATCH", url: `/api/v1/fields/${id}`, payload: {
+      crop: "corn", seasonYear: 2027, plantingDate: "2027-05-02", variety: "先玉 335",
+      boundary: [
+        { longitude: 123.8, latitude: 42.3 },
+        { longitude: 123.812, latitude: 42.3 },
+        { longitude: 123.812, latitude: 42.31 },
+        { longitude: 123.8, latitude: 42.31 },
+      ],
+    } });
+    expect(nextSeason.statusCode).toBe(200);
+    expect(nextSeason.json().field).toMatchObject({ seasonYear: 2027, boundaryVersion: 2, seasonCount: 2 });
+
+    const history = await app.inject({ method: "GET", url: `/api/v1/fields/${id}/history` });
+    expect(history.statusCode).toBe(200);
+    expect(history.json().history.seasons.map((season: { seasonYear: number }) => season.seasonYear)).toEqual([2027, 2026]);
+    expect(history.json().history.boundaryVersions.map((version: { version: number }) => version.version)).toEqual([2, 1]);
+
     const archived = await app.inject({ method: "DELETE", url: `/api/v1/fields/${id}` });
     expect(archived.statusCode).toBe(204);
     expect((await app.inject({ method: "GET", url: "/api/v1/fields" })).json().fields).toEqual([]);

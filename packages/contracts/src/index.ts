@@ -9,6 +9,7 @@ export interface Position {
 
 export interface FieldSummary {
   id: string;
+  organizationId: string;
   code: string;
   name: string;
   areaHa: number;
@@ -17,10 +18,25 @@ export interface FieldSummary {
   seasonYear: number;
   plantingDate: string | null;
   variety: string | null;
+  boundaryVersion: number;
+  seasonCount: number;
   centroid: Position;
   boundary: Position[];
   latestStatus: "normal" | "watch" | "not_analyzed";
   latestAnalyzedAt: string | null;
+}
+
+export interface FieldHistory {
+  fieldId: string;
+  boundaryVersions: Array<{ version: number; createdAt: string }>;
+  seasons: Array<{
+    id: string;
+    crop: CropCode;
+    seasonYear: number;
+    plantingDate: string | null;
+    variety: string | null;
+    updatedAt: string;
+  }>;
 }
 
 export interface FieldInput {

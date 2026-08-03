@@ -1,12 +1,15 @@
-import type { FieldInput, FieldSummary, FieldUpdateInput, Position } from "@chernozem/contracts";
+import type { FieldHistory, FieldInput, FieldSummary, FieldUpdateInput, Position } from "@chernozem/contracts";
 import { randomUUID } from "node:crypto";
 import pg from "pg";
 
 const { Pool } = pg;
 
+export const DEMO_ORGANIZATION_ID = "00000000-0000-0000-0000-000000000001";
+
 export interface FieldStore {
   list(): Promise<FieldSummary[]>;
   get(id: string): Promise<FieldSummary | null>;
+  history(id: string): Promise<FieldHistory | null>;
   create(input: FieldInput): Promise<FieldSummary>;
   update(id: string, input: FieldUpdateInput): Promise<FieldSummary | null>;
   archive(id: string): Promise<boolean>;
@@ -14,81 +17,171 @@ export interface FieldStore {
 
 export class FieldGeometryError extends Error {}
 
-export function createPostgresFieldStore(databaseUrl: string): FieldStore {
+export function createPostgresFieldStore(databaseUrl: string, organizationId = DEMO_ORGANIZATION_ID): FieldStore {
   const pool = new Pool({ connectionString: databaseUrl });
+
   return {
     async list() {
-      const result = await pool.query(FIELD_SELECT);
+      const result = await pool.query(`${FIELD_SELECT} AND f.organization_id = $1 ORDER BY f.updated_at DESC`, [organizationId]);
       return result.rows.map(toFieldSummary);
     },
     async get(id) {
-      const result = await pool.query(`${FIELD_SELECT} AND f.id = $1`, [id]);
+      const result = await pool.query(`${FIELD_SELECT} AND f.organization_id = $1 AND f.id = $2`, [organizationId, id]);
       return result.rows[0] ? toFieldSummary(result.rows[0]) : null;
+    },
+    async history(id) {
+      const field = await pool.query("SELECT id FROM fields WHERE id = $1 AND organization_id = $2 AND archived_at IS NULL", [id, organizationId]);
+      if (!field.rows[0]) return null;
+      const [boundaries, seasons] = await Promise.all([
+        pool.query("SELECT version, created_at FROM field_boundary_versions WHERE field_id = $1 ORDER BY version DESC", [id]),
+        pool.query("SELECT id, crop, season_year, planting_date, variety, updated_at FROM field_seasons WHERE field_id = $1 AND archived_at IS NULL ORDER BY season_year DESC", [id]),
+      ]);
+      return {
+        fieldId: id,
+        boundaryVersions: boundaries.rows.map((row) => ({ version: Number(row.version), createdAt: new Date(row.created_at).toISOString() })),
+        seasons: seasons.rows.map((row) => ({ id: String(row.id), crop: row.crop, seasonYear: Number(row.season_year), plantingDate: row.planting_date ? String(row.planting_date).slice(0, 10) : null, variety: row.variety ?? null, updatedAt: new Date(row.updated_at).toISOString() })),
+      };
     },
     async create(input) {
       const boundary = normalizeBoundary(input.boundary);
-      const result = await pool.query(
-        `INSERT INTO fields (id, name, crop, season_year, planting_date, variety, boundary)
-         VALUES ($1, $2, $3, $4, $5, $6, ST_SetSRID(ST_GeomFromGeoJSON($7), 4326))
-         RETURNING id`,
-        [randomUUID(), input.name, input.crop, input.seasonYear, input.plantingDate ?? null, input.variety ?? null, polygonGeoJson(boundary)],
-      );
-      return readField(pool, result.rows[0]!.id);
+      const boundaryJson = polygonGeoJson(boundary);
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await assertWithinAuthorizedArea(client, organizationId, boundaryJson);
+        const id = randomUUID();
+        await client.query(
+          `INSERT INTO fields (id, organization_id, name, crop, season_year, planting_date, variety, boundary, boundary_version)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, ST_SetSRID(ST_GeomFromGeoJSON($8), 4326), 1)`,
+          [id, organizationId, input.name, input.crop, input.seasonYear, input.plantingDate ?? null, input.variety ?? null, boundaryJson],
+        );
+        await client.query(
+          "INSERT INTO field_boundary_versions (id, field_id, version, boundary) VALUES ($1, $2, 1, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326))",
+          [randomUUID(), id, boundaryJson],
+        );
+        await client.query(
+          "INSERT INTO field_seasons (id, field_id, crop, season_year, planting_date, variety) VALUES ($1, $2, $3, $4, $5, $6)",
+          [randomUUID(), id, input.crop, input.seasonYear, input.plantingDate ?? null, input.variety ?? null],
+        );
+        await client.query("COMMIT");
+        return readField(pool, id, organizationId);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     },
     async update(id, input) {
-      const result = await pool.query(
-        `UPDATE fields
-         SET name = COALESCE($2, name), crop = COALESCE($3, crop), season_year = COALESCE($4, season_year),
-             planting_date = CASE WHEN $5 THEN $6::date ELSE planting_date END,
-             variety = CASE WHEN $7 THEN $8 ELSE variety END,
-             boundary = CASE WHEN $9 THEN ST_SetSRID(ST_GeomFromGeoJSON($10), 4326) ELSE boundary END,
-             updated_at = now()
-         WHERE id = $1 AND archived_at IS NULL
-         RETURNING id`,
-        [id, input.name ?? null, input.crop ?? null, input.seasonYear ?? null, input.plantingDate !== undefined, input.plantingDate ?? null, input.variety !== undefined, input.variety ?? null, input.boundary !== undefined, input.boundary ? polygonGeoJson(normalizeBoundary(input.boundary)) : null],
-      );
-      return result.rows[0] ? readField(pool, result.rows[0].id) : null;
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const current = await client.query(`${FIELD_SELECT} AND f.organization_id = $1 AND f.id = $2 FOR UPDATE`, [organizationId, id]);
+        if (!current.rows[0]) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+        const row = current.rows[0]!;
+        const nextName = input.name ?? String(row.name);
+        const nextCrop = input.crop ?? row.crop;
+        const nextSeasonYear = input.seasonYear ?? Number(row.season_year);
+        const nextPlantingDate = input.plantingDate !== undefined ? input.plantingDate : row.planting_date ? String(row.planting_date).slice(0, 10) : null;
+        const nextVariety = input.variety !== undefined ? input.variety : row.variety ?? null;
+
+        if (input.boundary) {
+          const boundary = normalizeBoundary(input.boundary);
+          const boundaryJson = polygonGeoJson(boundary);
+          await assertWithinAuthorizedArea(client, organizationId, boundaryJson);
+          const version = Number(row.boundary_version) + 1;
+          await client.query(
+            `UPDATE fields SET name = $3, boundary = ST_SetSRID(ST_GeomFromGeoJSON($4), 4326), boundary_version = $5, updated_at = now()
+             WHERE id = $1 AND organization_id = $2`,
+            [id, organizationId, nextName, boundaryJson, version],
+          );
+          await client.query(
+            "INSERT INTO field_boundary_versions (id, field_id, version, boundary) VALUES ($1, $2, $3, ST_SetSRID(ST_GeomFromGeoJSON($4), 4326))",
+            [randomUUID(), id, version, boundaryJson],
+          );
+        } else {
+          await client.query("UPDATE fields SET name = $3, updated_at = now() WHERE id = $1 AND organization_id = $2", [id, organizationId, nextName]);
+        }
+
+        await client.query(
+          `INSERT INTO field_seasons (id, field_id, crop, season_year, planting_date, variety)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (field_id, season_year) DO UPDATE
+           SET crop = EXCLUDED.crop, planting_date = EXCLUDED.planting_date, variety = EXCLUDED.variety, updated_at = now()`,
+          [randomUUID(), id, nextCrop, nextSeasonYear, nextPlantingDate, nextVariety],
+        );
+        // These columns keep the original migration readable while field_seasons owns historical records.
+        await client.query(
+          "UPDATE fields SET crop = $3, season_year = $4, planting_date = $5, variety = $6 WHERE id = $1 AND organization_id = $2",
+          [id, organizationId, nextCrop, nextSeasonYear, nextPlantingDate, nextVariety],
+        );
+        await client.query("COMMIT");
+        return readField(pool, id, organizationId);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     },
     async archive(id) {
-      const result = await pool.query("UPDATE fields SET archived_at = now(), updated_at = now() WHERE id = $1 AND archived_at IS NULL", [id]);
+      const result = await pool.query("UPDATE fields SET archived_at = now(), updated_at = now() WHERE id = $1 AND organization_id = $2 AND archived_at IS NULL", [id, organizationId]);
       return result.rowCount === 1;
     },
   };
 }
 
-export function createMemoryFieldStore(): FieldStore {
+export function createMemoryFieldStore(organizationId = DEMO_ORGANIZATION_ID): FieldStore {
   const fields = new Map<string, FieldSummary>();
+  const histories = new Map<string, FieldHistory>();
   return {
     async list() { return [...fields.values()]; },
     async get(id) { return fields.get(id) ?? null; },
+    async history(id) { return histories.get(id) ?? null; },
     async create(input) {
       const boundary = normalizeBoundary(input.boundary);
+      const id = randomUUID();
+      const now = new Date().toISOString();
       const field: FieldSummary = {
-        id: randomUUID(), code: "", name: input.name, crop: input.crop, seasonYear: input.seasonYear, plantingDate: input.plantingDate ?? null, variety: input.variety ?? null,
-        areaHa: polygonAreaHectares(boundary), village: "", boundary, centroid: polygonCentroid(boundary),
+        id, organizationId, code: "", name: input.name, crop: input.crop, seasonYear: input.seasonYear, plantingDate: input.plantingDate ?? null, variety: input.variety ?? null,
+        areaHa: polygonAreaHectares(boundary), village: "", boundary, centroid: polygonCentroid(boundary), boundaryVersion: 1, seasonCount: 1,
         latestStatus: "not_analyzed", latestAnalyzedAt: null,
       };
-      fields.set(field.id, field);
+      fields.set(id, field);
+      histories.set(id, { fieldId: id, boundaryVersions: [{ version: 1, createdAt: now }], seasons: [{ id: randomUUID(), crop: input.crop, seasonYear: input.seasonYear, plantingDate: input.plantingDate ?? null, variety: input.variety ?? null, updatedAt: now }] });
       return field;
     },
     async update(id, input) {
       const current = fields.get(id);
-      if (!current) return null;
+      const history = histories.get(id);
+      if (!current || !history) return null;
       const boundary = input.boundary ? normalizeBoundary(input.boundary) : current.boundary;
-      const updated: FieldSummary = { ...current, ...input, boundary, areaHa: polygonAreaHectares(boundary), centroid: polygonCentroid(boundary) };
+      const seasonYear = input.seasonYear ?? current.seasonYear;
+      const crop = input.crop ?? current.crop;
+      const plantingDate = input.plantingDate !== undefined ? input.plantingDate : current.plantingDate;
+      const variety = input.variety !== undefined ? input.variety : current.variety;
+      const now = new Date().toISOString();
+      const existingSeason = history.seasons.find((season) => season.seasonYear === seasonYear);
+      const seasons = existingSeason
+        ? history.seasons.map((season) => season.seasonYear === seasonYear ? { ...season, crop, plantingDate, variety, updatedAt: now } : season)
+        : [{ id: randomUUID(), crop, seasonYear, plantingDate, variety, updatedAt: now }, ...history.seasons];
+      const boundaryVersions = input.boundary ? [{ version: current.boundaryVersion + 1, createdAt: now }, ...history.boundaryVersions] : history.boundaryVersions;
+      const updated: FieldSummary = { ...current, ...input, boundary, crop, seasonYear, plantingDate, variety, areaHa: polygonAreaHectares(boundary), centroid: polygonCentroid(boundary), boundaryVersion: boundaryVersions[0]!.version, seasonCount: seasons.length };
       fields.set(id, updated);
+      histories.set(id, { fieldId: id, boundaryVersions, seasons: seasons.sort((left, right) => right.seasonYear - left.seasonYear) });
       return updated;
     },
-    async archive(id) { return fields.delete(id); },
+    async archive(id) { histories.delete(id); return fields.delete(id); },
   };
 }
 
 export function normalizeBoundary(boundary: Position[]): Position[] {
   if (boundary.length < 3) throw new FieldGeometryError("地块边界至少需要 3 个点。");
   const points = boundary.map((point) => {
-    if (!Number.isFinite(point.longitude) || !Number.isFinite(point.latitude) || Math.abs(point.longitude) > 180 || Math.abs(point.latitude) > 90) {
-      throw new FieldGeometryError("地块边界包含无效坐标。");
-    }
+    if (!Number.isFinite(point.longitude) || !Number.isFinite(point.latitude) || Math.abs(point.longitude) > 180 || Math.abs(point.latitude) > 90) throw new FieldGeometryError("地块边界包含无效坐标。");
     return { longitude: point.longitude, latitude: point.latitude };
   });
   const first = points[0]!;
@@ -101,12 +194,22 @@ export function normalizeBoundary(boundary: Position[]): Position[] {
   return points;
 }
 
+async function assertWithinAuthorizedArea(client: pg.PoolClient, organizationId: string, boundaryJson: string) {
+  const result = await client.query(
+    `SELECT EXISTS (
+      SELECT 1 FROM authorized_areas
+      WHERE organization_id = $1
+        AND ST_Covers(boundary, ST_SetSRID(ST_GeomFromGeoJSON($2), 4326))
+    ) AS permitted`,
+    [organizationId, boundaryJson],
+  );
+  if (!result.rows[0]?.permitted) throw new FieldGeometryError("地块边界不在当前账户的授权范围内。");
+}
+
 function hasSelfIntersection(points: Position[]): boolean {
-  for (let index = 0; index < points.length - 1; index += 1) {
-    for (let other = index + 1; other < points.length - 1; other += 1) {
-      if (Math.abs(index - other) <= 1 || (index === 0 && other === points.length - 2)) continue;
-      if (segmentsIntersect(points[index]!, points[index + 1]!, points[other]!, points[other + 1]!)) return true;
-    }
+  for (let index = 0; index < points.length - 1; index += 1) for (let other = index + 1; other < points.length - 1; other += 1) {
+    if (Math.abs(index - other) <= 1 || (index === 0 && other === points.length - 2)) continue;
+    if (segmentsIntersect(points[index]!, points[index + 1]!, points[other]!, points[other + 1]!)) return true;
   }
   return false;
 }
@@ -135,17 +238,29 @@ function polygonCentroid(points: Position[]): Position {
 
 function polygonGeoJson(boundary: Position[]) { return JSON.stringify({ type: "Polygon", coordinates: [boundary.map((point) => [point.longitude, point.latitude])] }); }
 
-const FIELD_SELECT = `SELECT f.id, f.name, f.crop, f.season_year, f.planting_date, f.variety,
+const FIELD_SELECT = `SELECT f.id, f.organization_id, f.name, f.boundary_version,
   ST_AsGeoJSON(f.boundary)::json AS boundary, ST_Area(f.boundary::geography) / 10000 AS area_ha,
-  ST_X(ST_Centroid(f.boundary)) AS longitude, ST_Y(ST_Centroid(f.boundary)) AS latitude
-  FROM fields f WHERE f.archived_at IS NULL`;
+  ST_X(ST_Centroid(f.boundary)) AS longitude, ST_Y(ST_Centroid(f.boundary)) AS latitude,
+  s.crop, s.season_year, s.planting_date, s.variety,
+  (SELECT count(*) FROM field_seasons active_season WHERE active_season.field_id = f.id AND active_season.archived_at IS NULL) AS season_count
+  FROM fields f
+  JOIN LATERAL (
+    SELECT crop, season_year, planting_date, variety FROM field_seasons
+    WHERE field_id = f.id AND archived_at IS NULL
+    ORDER BY season_year DESC, updated_at DESC LIMIT 1
+  ) s ON true
+  WHERE f.archived_at IS NULL`;
 
-async function readField(pool: pg.Pool, id: string): Promise<FieldSummary> {
-  const result = await pool.query(`${FIELD_SELECT} AND f.id = $1`, [id]);
+async function readField(pool: pg.Pool, id: string, organizationId: string): Promise<FieldSummary> {
+  const result = await pool.query(`${FIELD_SELECT} AND f.organization_id = $1 AND f.id = $2`, [organizationId, id]);
   return toFieldSummary(result.rows[0]!);
 }
 
 function toFieldSummary(row: Record<string, unknown>): FieldSummary {
   const boundary = (row.boundary as { coordinates: Array<Array<[number, number]>> }).coordinates[0]!.map(([longitude, latitude]) => ({ longitude, latitude }));
-  return { id: String(row.id), code: `FIELD-${String(row.id).slice(0, 8).toUpperCase()}`, name: String(row.name), crop: row.crop as FieldSummary["crop"], seasonYear: Number(row.season_year), plantingDate: row.planting_date ? String(row.planting_date).slice(0, 10) : null, variety: row.variety ? String(row.variety) : null, areaHa: Number(row.area_ha), village: "", boundary, centroid: { longitude: Number(row.longitude), latitude: Number(row.latitude) }, latestStatus: "not_analyzed", latestAnalyzedAt: null };
+  return {
+    id: String(row.id), organizationId: String(row.organization_id), code: `FIELD-${String(row.id).slice(0, 8).toUpperCase()}`,
+    name: String(row.name), crop: row.crop as FieldSummary["crop"], seasonYear: Number(row.season_year), plantingDate: row.planting_date ? String(row.planting_date).slice(0, 10) : null, variety: row.variety ? String(row.variety) : null,
+    areaHa: Number(row.area_ha), village: "", boundary, centroid: { longitude: Number(row.longitude), latitude: Number(row.latitude) }, boundaryVersion: Number(row.boundary_version), seasonCount: Number(row.season_count), latestStatus: "not_analyzed", latestAnalyzedAt: null,
+  };
 }

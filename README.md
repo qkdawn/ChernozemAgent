@@ -34,7 +34,7 @@ pnpm test
 
 ## 启动工作台
 
-先启动 PostGIS。首次启动会自动执行地块表迁移：
+先启动 PostGIS。首次启动会自动执行地块管理迁移：
 
 ```bash
 docker compose up -d postgis
@@ -48,12 +48,22 @@ pnpm dev
 
 启动后访问 `http://localhost:5173`。Web 开发服务器会将 `/api` 请求代理到 `http://localhost:3001` 的本地 API。
 
+已有本地数据库在拉取新版本后，需要手动执行新增迁移一次：
+
+```bash
+docker compose exec -T postgis psql -U chernozem -d chernozem -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/002_field_management.sql
+```
+
 ### 地块管理
 
 - 在地图上绘制多边形，双击结束；选中后可拖动顶点，地图右上角删除控件可清除当前边界；
 - 保存时校验坐标、闭合边界、自相交和面积范围；
+- 地块归属固定到当前示范组织，后端按授权范围校验，不允许把边界保存到授权范围外；
+- 修改边界自动形成新边界版本；跨年份保存作物信息时，保留旧种植季；右侧详情展示边界版本与种植季数量；
 - 支持导入 `GeoJSON FeatureCollection`，每个 Polygon 建立一块地；
-- `POST /api/v1/fields`、`PATCH /api/v1/fields/:id`、`DELETE /api/v1/fields/:id` 与 `POST /api/v1/fields/import` 提供对应的受控 API。
+- `POST /api/v1/fields`、`PATCH /api/v1/fields/:id`、`DELETE /api/v1/fields/:id`、`GET /api/v1/fields/:id/history` 与 `POST /api/v1/fields/import` 提供对应的受控 API。
+
+当前是单个“铁岭示范账户”的开发配置，组织 ID 由后端配置固定。正式多账号登录、成员角色和每个用户的组织解析仍属于下一阶段，不能将该演示配置视为完整的身份认证系统。
 
 ## 真实模型 Smoke Test
 

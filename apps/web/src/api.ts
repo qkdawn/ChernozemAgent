@@ -1,4 +1,4 @@
-import type { AnalysisTask, CreateAnalysisTaskRequest, FieldInput, FieldSummary, FieldUpdateInput, PlanetAccessStatus } from "@chernozem/contracts";
+import type { AnalysisTask, CreateAnalysisTaskRequest, FieldHistory, FieldInput, FieldSummary, FieldUpdateInput, PlanetAccessStatus } from "@chernozem/contracts";
 
 interface ApiErrorBody {
   message?: string;
@@ -9,6 +9,12 @@ export async function fetchFields(): Promise<FieldSummary[]> {
   if (!response.ok) throw new Error("农田列表加载失败。");
   const body = (await response.json()) as { fields: FieldSummary[] };
   return body.fields;
+}
+
+export async function fetchFieldHistory(id: string): Promise<FieldHistory> {
+  const response = await fetch(`/api/v1/fields/${id}/history`);
+  if (!response.ok) throw new Error("地块历史加载失败。");
+  return ((await response.json()) as { history: FieldHistory }).history;
 }
 
 export async function createField(input: FieldInput): Promise<FieldSummary> {
