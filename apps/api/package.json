@@ -6,15 +6,28 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/server.ts",
+    "dev:memory": "tsx watch src/memory-server.ts",
     "start": "node dist/server.js",
+    "knowledge:smoke": "tsx scripts/smoke-knowledge-mcp.ts",
+    "knowledge:verify-local": "tsx scripts/verify-local-knowledge.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run src --exclude \"**/runtime/**\" && python -m unittest discover -s scripts/tests -p \"test_*.py\""
   },
   "dependencies": {
+    "@chernozem/agent-runtime": "workspace:*",
     "@chernozem/contracts": "workspace:*",
     "@fastify/cors": "^11.2.0",
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "@turf/area": "^7.3.5",
+    "@turf/boolean-point-in-polygon": "7.3.5",
+    "@turf/helpers": "7.3.5",
+    "@turf/intersect": "7.3.5",
+    "@turf/kinks": "7.3.5",
+    "@turf/union": "7.3.5",
     "fastify": "^5.8.2",
-    "pg": "^8.22.0"
+    "pg": "^8.22.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/pg": "^8.20.0"

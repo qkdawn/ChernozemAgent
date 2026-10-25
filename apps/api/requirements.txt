@@ -1,0 +1,7 @@
+ecmwf-datastores-client==0.5.3
+ecmwf-opendata==0.3.26
+eccodes==2.43.0
+numpy==2.3.2
+Pillow==11.3.0
+pyproj==3.7.2
+rasterio==1.4.3

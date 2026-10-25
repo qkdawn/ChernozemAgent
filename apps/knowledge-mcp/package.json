@@ -1,0 +1,29 @@
+{
+  "name": "@chernozem/knowledge-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "tsx src/server.ts",
+    "knowledge:init": "tsx src/init-graphrag.ts",
+    "knowledge:prepare": "tsx src/prepare-pack.ts",
+    "knowledge:build-local": "tsx src/build-local.ts",
+    "knowledge:plan-index": "tsx src/plan-index.ts",
+    "knowledge:index": "tsx src/run-index.ts",
+    "knowledge:sync": "tsx src/sync-citations.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run src"
+  },
+  "dependencies": {
+    "@chernozem/contracts": "workspace:*",
+    "@modelcontextprotocol/server": "2.0.0",
+    "fast-xml-parser": "5.11.0",
+    "pg": "^8.22.0",
+    "yaml": "2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
+  }
+}

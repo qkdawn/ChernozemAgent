@@ -34,12 +34,12 @@ export function createPostgresFieldStore(databaseUrl: string, organizationId = D
       if (!field.rows[0]) return null;
       const [boundaries, seasons] = await Promise.all([
         pool.query("SELECT version, created_at FROM field_boundary_versions WHERE field_id = $1 ORDER BY version DESC", [id]),
-        pool.query("SELECT id, crop, season_year, planting_date, variety, updated_at FROM field_seasons WHERE field_id = $1 AND archived_at IS NULL ORDER BY season_year DESC", [id]),
+        pool.query("SELECT id, crop, season_year, to_char(planting_date, 'YYYY-MM-DD') AS planting_date, variety, updated_at FROM field_seasons WHERE field_id = $1 AND archived_at IS NULL ORDER BY season_year DESC", [id]),
       ]);
       return {
         fieldId: id,
         boundaryVersions: boundaries.rows.map((row) => ({ version: Number(row.version), createdAt: new Date(row.created_at).toISOString() })),
-        seasons: seasons.rows.map((row) => ({ id: String(row.id), crop: row.crop, seasonYear: Number(row.season_year), plantingDate: row.planting_date ? String(row.planting_date).slice(0, 10) : null, variety: row.variety ?? null, updatedAt: new Date(row.updated_at).toISOString() })),
+        seasons: seasons.rows.map((row) => ({ id: String(row.id), crop: row.crop, seasonYear: Number(row.season_year), plantingDate: row.planting_date ? String(row.planting_date) : null, variety: row.variety ?? null, updatedAt: new Date(row.updated_at).toISOString() })),
       };
     },
     async create(input) {
@@ -85,12 +85,14 @@ export function createPostgresFieldStore(databaseUrl: string, organizationId = D
         const nextName = input.name ?? String(row.name);
         const nextCrop = input.crop ?? row.crop;
         const nextSeasonYear = input.seasonYear ?? Number(row.season_year);
-        const nextPlantingDate = input.plantingDate !== undefined ? input.plantingDate : row.planting_date ? String(row.planting_date).slice(0, 10) : null;
+        const nextPlantingDate = input.plantingDate !== undefined ? input.plantingDate : row.planting_date ? String(row.planting_date) : null;
         const nextVariety = input.variety !== undefined ? input.variety : row.variety ?? null;
 
-        if (input.boundary) {
-          const boundary = normalizeBoundary(input.boundary);
-          const boundaryJson = polygonGeoJson(boundary);
+        const currentBoundary = boundaryFromGeoJson(row.boundary);
+        const nextBoundary = input.boundary ? normalizeBoundary(input.boundary) : null;
+        const boundaryChanged = nextBoundary !== null && !sameBoundary(currentBoundary, nextBoundary);
+        if (boundaryChanged) {
+          const boundaryJson = polygonGeoJson(nextBoundary);
           await assertWithinAuthorizedArea(client, organizationId, boundaryJson);
           const version = Number(row.boundary_version) + 1;
           await client.query(
@@ -158,7 +160,9 @@ export function createMemoryFieldStore(organizationId = DEMO_ORGANIZATION_ID): F
       const current = fields.get(id);
       const history = histories.get(id);
       if (!current || !history) return null;
-      const boundary = input.boundary ? normalizeBoundary(input.boundary) : current.boundary;
+      const candidateBoundary = input.boundary ? normalizeBoundary(input.boundary) : null;
+      const boundaryChanged = candidateBoundary !== null && !sameBoundary(current.boundary, candidateBoundary);
+      const boundary = boundaryChanged ? candidateBoundary : current.boundary;
       const seasonYear = input.seasonYear ?? current.seasonYear;
       const crop = input.crop ?? current.crop;
       const plantingDate = input.plantingDate !== undefined ? input.plantingDate : current.plantingDate;
@@ -168,7 +172,7 @@ export function createMemoryFieldStore(organizationId = DEMO_ORGANIZATION_ID): F
       const seasons = existingSeason
         ? history.seasons.map((season) => season.seasonYear === seasonYear ? { ...season, crop, plantingDate, variety, updatedAt: now } : season)
         : [{ id: randomUUID(), crop, seasonYear, plantingDate, variety, updatedAt: now }, ...history.seasons];
-      const boundaryVersions = input.boundary ? [{ version: current.boundaryVersion + 1, createdAt: now }, ...history.boundaryVersions] : history.boundaryVersions;
+      const boundaryVersions = boundaryChanged ? [{ version: current.boundaryVersion + 1, createdAt: now }, ...history.boundaryVersions] : history.boundaryVersions;
       const updated: FieldSummary = { ...current, ...input, boundary, crop, seasonYear, plantingDate, variety, areaHa: polygonAreaHectares(boundary), centroid: polygonCentroid(boundary), boundaryVersion: boundaryVersions[0]!.version, seasonCount: seasons.length };
       fields.set(id, updated);
       histories.set(id, { fieldId: id, boundaryVersions, seasons: seasons.sort((left, right) => right.seasonYear - left.seasonYear) });
@@ -192,6 +196,21 @@ export function normalizeBoundary(boundary: Position[]): Position[] {
   if (areaHa <= 0.01) throw new FieldGeometryError("地块面积过小，无法保存。");
   if (areaHa > 20_000) throw new FieldGeometryError("地块面积异常，请检查绘制范围。");
   return points;
+}
+
+export function pointInBoundary(point: Position, boundary: Position[]): boolean {
+  const ring = boundary.at(-1)?.longitude === boundary[0]?.longitude && boundary.at(-1)?.latitude === boundary[0]?.latitude
+    ? boundary.slice(0, -1)
+    : boundary;
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    const current = ring[index]!;
+    const prior = ring[previous]!;
+    const intersects = ((current.latitude > point.latitude) !== (prior.latitude > point.latitude))
+      && point.longitude < (prior.longitude - current.longitude) * (point.latitude - current.latitude) / (prior.latitude - current.latitude) + current.longitude;
+    if (intersects) inside = !inside;
+  }
+  return inside;
 }
 
 async function assertWithinAuthorizedArea(client: pg.PoolClient, organizationId: string, boundaryJson: string) {
@@ -236,12 +255,25 @@ function polygonCentroid(points: Position[]): Position {
   return { longitude: vertices.reduce((sum, point) => sum + point.longitude, 0) / vertices.length, latitude: vertices.reduce((sum, point) => sum + point.latitude, 0) / vertices.length };
 }
 
+function boundaryFromGeoJson(value: unknown): Position[] {
+  const coordinates = (value as { coordinates: Array<Array<[number, number]>> }).coordinates[0] ?? [];
+  return coordinates.map(([longitude, latitude]) => ({ longitude, latitude }));
+}
+
+function sameBoundary(left: Position[], right: Position[]): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((point, index) => {
+    const other = right[index]!;
+    return Math.abs(point.longitude - other.longitude) <= 1e-8 && Math.abs(point.latitude - other.latitude) <= 1e-8;
+  });
+}
+
 function polygonGeoJson(boundary: Position[]) { return JSON.stringify({ type: "Polygon", coordinates: [boundary.map((point) => [point.longitude, point.latitude])] }); }
 
 const FIELD_SELECT = `SELECT f.id, f.organization_id, f.name, f.boundary_version,
   ST_AsGeoJSON(f.boundary)::json AS boundary, ST_Area(f.boundary::geography) / 10000 AS area_ha,
   ST_X(ST_Centroid(f.boundary)) AS longitude, ST_Y(ST_Centroid(f.boundary)) AS latitude,
-  s.crop, s.season_year, s.planting_date, s.variety,
+  s.crop, s.season_year, to_char(s.planting_date, 'YYYY-MM-DD') AS planting_date, s.variety,
   (SELECT count(*) FROM field_seasons active_season WHERE active_season.field_id = f.id AND active_season.archived_at IS NULL) AS season_count
   FROM fields f
   JOIN LATERAL (
@@ -260,7 +292,7 @@ function toFieldSummary(row: Record<string, unknown>): FieldSummary {
   const boundary = (row.boundary as { coordinates: Array<Array<[number, number]>> }).coordinates[0]!.map(([longitude, latitude]) => ({ longitude, latitude }));
   return {
     id: String(row.id), organizationId: String(row.organization_id), code: `FIELD-${String(row.id).slice(0, 8).toUpperCase()}`,
-    name: String(row.name), crop: row.crop as FieldSummary["crop"], seasonYear: Number(row.season_year), plantingDate: row.planting_date ? String(row.planting_date).slice(0, 10) : null, variety: row.variety ? String(row.variety) : null,
+    name: String(row.name), crop: row.crop as FieldSummary["crop"], seasonYear: Number(row.season_year), plantingDate: row.planting_date ? String(row.planting_date) : null, variety: row.variety ? String(row.variety) : null,
     areaHa: Number(row.area_ha), village: "", boundary, centroid: { longitude: Number(row.longitude), latitude: Number(row.latitude) }, boundaryVersion: Number(row.boundary_version), seasonCount: Number(row.season_count), latestStatus: "not_analyzed", latestAnalyzedAt: null,
   };
 }

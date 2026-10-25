@@ -3,9 +3,11 @@ packages:
   - "packages/*"
 
 allowBuilds:
-  '@google/genai': set this to true or false
   esbuild: set this to true or false
-  protobufjs: set this to true or false
+
+minimumReleaseAgeExclude:
+  - '@openai/codex-sdk@0.149.0'
+  - '@openai/codex@0.149.0-darwin-arm64 || 0.149.0-darwin-x64 || 0.149.0-linux-arm64 || 0.149.0-linux-x64 || 0.149.0-win32-arm64 || 0.149.0-win32-x64 || 0.149.0'
 
 onlyBuiltDependencies:
   - "@google/genai"

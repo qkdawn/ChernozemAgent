@@ -10,7 +10,7 @@
 
 | 参考对象 | 借鉴内容 | 不直接照搬的部分 |
 |---|---|---|
-| Pi Agent Core | 有状态循环、事件流、工具 hooks、并行/串行语义、上下文转换 | Coding Agent 的 bash/edit/write 等通用工具 |
+| Codex harness | 对话线程、流式事件、恢复、沙箱和审批策略 | Coding Agent 的 Shell、文件、MCP 与网络能力 |
 | RS-Agent | 中央控制器、遥感工具集、任务解法空间、领域知识空间 | 默认 stub 工具、偏图像处理的任务范围、只看规划准确率 |
 | GeoAgent | 自然语言多步 GIS、算法发现、参数填充、失败重试、执行日志 | 对本地 QGIS 状态的强依赖、开放算法注册表 |
 | GeoBenchX | 可解与不可解任务、拒绝工具、完整轨迹、参考答案和评测集 | 纯 LLM-as-Judge 作为唯一质量判定 |
@@ -30,7 +30,7 @@ RS-Agent、GeoAgent、LLM-Geo 和 Arion 的价值只在后台工程层：工具�
 Anthropic 的工程建议区分 workflow 与 agent：固定流程适合步骤可预判、责任边界清晰的任务；Agent 适合步骤需要根据中间结果动态决定的任务。对于黑土智管：
 
 - 地块授权、数据质检、时空对齐、质量门、专业复核和报告发布采用确定性 workflow；
-- 数据源选择、工具组合、缺口追问和证据组织允许 Pi Agent 动态决策；
+- 农情工具组合和顺序由版本化 Workflow 决定；Codex 承担解释、追问、纯对话和受控结果文字编辑，不参与业务分析；
 - 只有稳定的单 Agent 任务链通过评测后，才考虑规划器、执行器、审核器等多 Agent 分工。
 
 ### 2.2 Agent 运行状态不能替代业务状态
@@ -43,7 +43,7 @@ Anthropic 的工程建议区分 workflow 与 agent：固定流程适合步骤可
 - 谁审核和发布了报告；
 - 现场反馈是否支持原判断。
 
-Pi 的 `AgentState` 保留在运行时；PostgreSQL 中的 `analysis_task`、`agent_run`、`tool_run`、`evidence_item` 和 `review` 才是业务事实。
+Codex thread 只保存对话运行状态；PostgreSQL 中的 `analysis_task`、`agent_run`、`tool_run`、`analysis_result` 和 `review` 才是业务事实。
 
 ### 2.3 工具要窄、深、结构化
 
@@ -71,7 +71,7 @@ Agent 不应为了“给出答案”把这些状态改写成推测性结论。
 
 ### 2.5 评测工具轨迹，不只评测最终文本
 
-RS-Agent 重点测工具规划，GeoBenchX 保存完整 conversation/tool history，Pi 提供细粒度事件。黑土智管的评测单位应至少包含：
+RS-Agent 重点测工具规划，GeoBenchX 保存完整 conversation/tool history，Codex 提供线程与流式事件。黑土智管的评测单位应至少包含：
 
 - 任务意图是否正确；
 - 选择的数据和工具是否合适；
@@ -114,7 +114,7 @@ RS-Agent 重点测工具规划，GeoBenchX 保存完整 conversation/tool histor
 
 ### 2.8 上下文管理是数据产品问题
 
-长任务不能依赖无限消息历史。Pi 的 `transformContext` 和 `convertToLlm` 应用于：
+长任务不能依赖无限消息历史。服务端构造 Codex 对话上下文时应：
 
 - 保留当前任务口径、授权摘要、最近有效证据和未解决缺口；
 - 把完整审计事件、UI 消息和敏感字段留在模型上下文之外；
@@ -123,7 +123,7 @@ RS-Agent 重点测工具规划，GeoBenchX 保存完整 conversation/tool histor
 
 ### 2.9 并行只用于无副作用工作
 
-Pi 默认可并行执行工具。适合并行的任务包括不同数据源检索、只读元数据查询和独立质量检查。以下操作应串行：
+Workflow 只有在步骤彼此独立且无副作用时才并行。适合并行的任务包括不同数据源检索、只读元数据查询和独立质量检查。以下操作应串行：
 
 - 写入任务事实；
 - 消耗共享临时资源；
@@ -154,7 +154,7 @@ Pi 默认可并行执行工具。适合并行的任务包括不同数据源检�
 - 数据工具只返回业务所需字段；
 - 报告渲染转义不可信文本；
 - 对模型不可见的审计日志保留原始来源摘要；
-- 第三方 Pi packages、extensions 和 skills 在安装前审查源码并锁定版本。
+- Codex SDK 与其他第三方依赖在安装前审查来源并锁定版本。
 
 ## 3. 高相似度项目
 
@@ -269,7 +269,7 @@ GitHub 搜索发现以下方向与黑土智管主题接近：
 
 近期论文提供未来方向，但黑土智管 V0.1 更需要稳定的受控工具、质量门和可复查报告，而不是动态造工具、层级多 Agent 或自主科学发现。
 
-## 7. 对现有 Pi 架构方案的建议
+## 7. 对现有架构方案的建议
 
 ### 产品形态纠偏
 
@@ -286,7 +286,7 @@ GitHub 搜索发现以下方向与黑土智管主题接近：
 
 1. 增加显式 `reject_task` / `request_missing_input` 领域工具；
 2. 建立 Solution Space 的轻量版本：为玉米巡田保存经过审核的任务模板和工具组合；
-3. 每个 Pi run 保存完整事件轨迹、结构化输入快照和最终证据图；
+3. 每个 Workflow run 保存完整事件轨迹、结构化输入快照和最终证据图；
 4. 评测集同时包含可解、不可解、低质量和工具失败样本；
 5. 前端显示步骤、工具、质量、限制和拒绝原因；
 6. 固定最大 turn、工具调用、重试、时限和成本预算；
@@ -314,7 +314,7 @@ GitHub 搜索发现以下方向与黑土智管主题接近：
 
 | 优先级 | 项目 | 跟踪内容 |
 |---|---|---|
-| P0 | Pi Agent Core | 事件、hooks、上下文、工具执行兼容性 |
+| P0 | Codex harness / SDK | 线程、事件、恢复、沙箱与模型兼容性 |
 | P0 | RS-Agent | Solution Space、遥感工具目录、规划评测 |
 | P0 | GeoBenchX | 不可解任务、轨迹格式和评测数据组织 |
 | P1 | GeoAgent | GIS 工具发现、参数解析、失败修复和日志 UI |
@@ -326,8 +326,8 @@ GitHub 搜索发现以下方向与黑土智管主题接近：
 
 ## 9. 主要来源
 
-- [Pi mono](https://github.com/badlogic/pi-mono)
-- [Pi Agent Core npm](https://www.npmjs.com/package/@mariozechner/pi-agent-core)
+- [OpenAI Codex](https://github.com/openai/codex)
+- [Codex SDK](https://developers.openai.com/codex/sdk)
 - [Anthropic: Building Effective Agents](https://www.anthropic.com/engineering/building-effective-agents)
 - [RS-Agent](https://github.com/IntelliSensing/RS-Agent)
 - [Earth-Agent](https://github.com/opendatalab/Earth-Agent)

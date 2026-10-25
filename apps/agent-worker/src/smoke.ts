@@ -1,39 +1,67 @@
-import { createChernozemAgent, InMemoryAgentEventSink } from "@chernozem/agent-runtime";
-import { getEnvApiKey, getModels, getProviders, type KnownProvider } from "@mariozechner/pi-ai";
+import { InMemoryAgentEventSink, runCornWorkflow, type ControlledAnalysisTool } from "@chernozem/agent-runtime";
+import type { AnalysisResult } from "@chernozem/contracts";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { loadEnvFile } from "node:process";
 
-const providerName = process.env.PI_PROVIDER;
-const modelId = process.env.PI_MODEL;
-
-if (!providerName || !modelId) {
-  throw new Error("Set PI_PROVIDER and PI_MODEL before running pnpm agent:smoke.");
-}
-
-if (!getProviders().includes(providerName as KnownProvider)) {
-  throw new Error(`Unknown PI_PROVIDER: ${providerName}`);
-}
-
-const provider = providerName as KnownProvider;
-const model = getModels(provider).find((candidate) => candidate.id === modelId);
-if (!model) {
-  throw new Error(`Unknown model ${modelId} for provider ${provider}.`);
+const envPath = resolve(import.meta.dirname, "../../../.env");
+if (existsSync(envPath)) {
+  loadEnvFile(envPath);
 }
 
 const eventSink = new InMemoryAgentEventSink();
-const agent = createChernozemAgent({
-  model,
-  eventSink,
-  getApiKey: (requestedProvider) => getEnvApiKey(requestedProvider),
-  scope: {
-    organizationId: "demo-organization",
-    taskId: "demo-task",
-    fieldIds: ["field-001"],
-    crop: "corn",
-    period: { start: "2026-06-01", end: "2026-06-30" },
-  },
-});
+try {
+  const run = await runCornWorkflow({
+    eventSink,
+    objective: "growth_stage_monitoring",
+    scope: {
+      organizationId: "demo-organization",
+      taskId: "demo-task",
+      fieldIds: ["field-001"],
+      crop: "corn",
+      period: { start: "2026-06-01", end: "2026-06-30" },
+    },
+    tools: smokeTools(),
+  });
+  console.log(JSON.stringify({ run, events: eventSink.records }, null, 2));
+} catch (error) {
+  const message = error instanceof Error ? error.message : "农情工作流运行失败。";
+  console.error(`Agent smoke failed: ${redactSecrets(message)}`);
+  console.error(JSON.stringify({ events: eventSink.records.map((event) => ({
+    sequence: event.sequence,
+    type: event.type,
+    ...(event.toolName ? { toolName: event.toolName } : {}),
+    ...(event.isError !== undefined ? { isError: event.isError } : {}),
+    ...(event.resultStatus ? { resultStatus: event.resultStatus } : {}),
+  })) }, null, 2));
+  process.exitCode = 1;
+}
 
-await agent.prompt("读取当前任务范围，然后用一句中文说明分析对象。 ");
-await agent.waitForIdle();
+function smokeTools(): ControlledAnalysisTool[] {
+  return [
+    tool("analyze_optical_condition", "optical_condition", "已读取 2026-06-26 光学田况。"),
+    tool("estimate_crop_stage", "crop_stage", "根据播种日期估计处于拔节期。"),
+    tool("assess_growth_status", "assessment", "2026-06-26 地块长势整体正常，西南部存在田内相对偏弱区。"),
+  ];
+}
 
-const finalMessage = agent.state.messages.at(-1);
-console.log(JSON.stringify({ finalMessage, events: eventSink.records }, null, 2));
+function tool(name: ControlledAnalysisTool["name"], kind: AnalysisResult<unknown>["kind"], summary: string): ControlledAnalysisTool {
+  return {
+    name,
+    async execute({ taskId }) {
+      return {
+        id: `${kind}-smoke`, taskId, kind, status: "succeeded", toolVersion: "smoke", createdAt: new Date().toISOString(),
+        execution: { toolName: name, scope: { fieldId: "demo-field", boundaryVersion: 1, timeRange: null }, inputs: { acquisitionIds: [], assetIds: [], resultIds: [] }, parameters: {}, inputFingerprint: "smoke" },
+        summary, result: {}, sources: [], findings: [], artifacts: [], limitations: [], nextActions: [], error: null,
+      };
+    },
+  };
+}
+
+function redactSecrets(value: string): string {
+  const configured = process.env.OPENAI_API_KEY;
+  return value
+    .replace(configured ?? "__no_configured_key__", configured ? "[REDACTED]" : "__no_configured_key__")
+    .replace(/\bBearer\s+[A-Za-z0-9._~-]{8,}/gi, "Bearer [REDACTED]")
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}/g, "[REDACTED]");
+}

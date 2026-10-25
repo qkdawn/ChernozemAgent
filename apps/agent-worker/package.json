@@ -11,6 +11,6 @@
   },
   "dependencies": {
     "@chernozem/agent-runtime": "workspace:*",
-    "@mariozechner/pi-ai": "0.73.1"
+    "@chernozem/contracts": "workspace:*"
   }
 }

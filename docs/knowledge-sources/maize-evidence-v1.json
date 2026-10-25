@@ -1,0 +1,780 @@
+{
+  "schemaVersion": "1.0",
+  "packId": "maize-evidence-v1",
+  "title": "辽宁春玉米多源农情解释知识包（首版）",
+  "crop": "corn",
+  "regions": [
+    "东北中国",
+    "辽宁",
+    "吉林",
+    "黑龙江",
+    "内蒙古东部"
+  ],
+  "capabilities": [
+    "growth_stage_monitoring",
+    "water_nitrogen_diagnosis",
+    "waterlogging_detection",
+    "frost_risk_warning"
+  ],
+  "sources": [
+    {
+      "id": "389a5d26-e049-5aba-ac8b-3654aa29bd48",
+      "title": "Evaluation of Sentinel-2 Red-Edge Bands for Empirical Estimation of Green LAI and Chlorophyll Content",
+      "sourceType": "paper",
+      "authors": [
+        "Jesús Delegido",
+        "Jochem Verrelst",
+        "Luis Alonso",
+        "José Moreno"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2011,
+      "version": "2011-07-08 / maize-evidence-v1",
+      "sourceUrl": "https://doi.org/10.3390/s110707063",
+      "identifierType": "doi",
+      "identifier": "10.3390/s110707063",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/3.0/",
+      "licenseNote": "作者保留版权；文章按 CC BY 3.0 发布，可在保留署名时处理全文。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "冠层形成后"
+      ],
+      "content": {
+        "format": "jats-xml",
+        "fileName": "delegido-2011.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/sensors/sensors-11-07063/article_deploy/sensors-11-07063.xml"
+        ],
+        "sections": [
+          {
+            "title": "Spectral Indices"
+          },
+          {
+            "title": "LAI Estimation"
+          },
+          {
+            "title": "Canopy Chlorophyll Estimation"
+          },
+          {
+            "title": "Discussion"
+          },
+          {
+            "title": "Conclusions"
+          }
+        ]
+      },
+      "capabilities": [
+        "growth_stage_monitoring",
+        "water_nitrogen_diagnosis"
+      ],
+      "retrievalKeywords": [
+        "红边",
+        "叶绿素",
+        "冠层",
+        "LAI",
+        "NDRE"
+      ],
+      "applicabilityNote": "红边、叶绿素与LAI通用方法；研究并非辽宁当前地块，不能单凭指数确诊缺氮。"
+    },
+    {
+      "id": "667ea3fb-2106-5d5a-a4a2-73b6859bd790",
+      "title": "Mapping of Phenological Traits in Northeast China Maize (Zea mays L.)",
+      "sourceType": "paper",
+      "authors": [
+        "Xiaowei Wang",
+        "Xiaoyu Li",
+        "Jiatong Gu",
+        "Wenqi Shi",
+        "Haigen Zhao",
+        "Chen Sun",
+        "Songcai You"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2022,
+      "version": "2022-10-20 / maize-evidence-v1",
+      "sourceUrl": "https://doi.org/10.3390/agronomy12102585",
+      "identifierType": "doi",
+      "identifier": "10.3390/agronomy12102585",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "作者保留版权；文章按 CC BY 4.0 发布，可在保留署名时处理全文。",
+      "regions": [
+        "辽宁",
+        "吉林",
+        "黑龙江",
+        "内蒙古东部"
+      ],
+      "stages": [
+        "播种",
+        "出苗",
+        "三叶",
+        "七叶",
+        "拔节",
+        "抽雄",
+        "开花",
+        "吐丝",
+        "成熟"
+      ],
+      "content": {
+        "format": "jats-xml",
+        "fileName": "wang-2022.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/agronomy/agronomy-12-02585/article_deploy/agronomy-12-02585.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2dot1-agronomy-12-02585"
+          },
+          {
+            "id": "sec2dot2-agronomy-12-02585"
+          },
+          {
+            "id": "sec3dot1-agronomy-12-02585"
+          },
+          {
+            "id": "sec3dot4-agronomy-12-02585"
+          },
+          {
+            "id": "sec4-agronomy-12-02585"
+          },
+          {
+            "id": "sec5-agronomy-12-02585"
+          }
+        ]
+      },
+      "capabilities": [
+        "growth_stage_monitoring",
+        "frost_risk_warning"
+      ],
+      "retrievalKeywords": [
+        "生育期",
+        "物候",
+        "积温",
+        "播种",
+        "成熟"
+      ],
+      "applicabilityNote": "东北区域物候研究；地块生育期仍需播期、品种与当年天气共同判断。"
+    },
+    {
+      "id": "b804e716-adf1-5bf7-bbb4-68ecaa489119",
+      "title": "Effects of Temperature on Growth and Grain Maturity of Spring Maize in Northeast China: A Study of Different Sowing Dates",
+      "sourceType": "paper",
+      "authors": [
+        "Lixia Jiang",
+        "Ming Wang",
+        "Zheng Chu",
+        "Yonggang Gao",
+        "Lifeng Guo",
+        "Shengtai Ji",
+        "Lanqi Jiang",
+        "Lijuan Gong"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2023,
+      "version": "2023-11-29 / maize-evidence-v1",
+      "sourceUrl": "https://doi.org/10.3390/atmos14121755",
+      "identifierType": "doi",
+      "identifier": "10.3390/atmos14121755",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "作者保留版权；文章按 CC BY 4.0 发布，可在保留署名时处理全文。",
+      "regions": [
+        "黑龙江",
+        "东北平原"
+      ],
+      "stages": [
+        "播种",
+        "出苗",
+        "营养生长",
+        "开花",
+        "灌浆",
+        "成熟"
+      ],
+      "content": {
+        "format": "jats-xml",
+        "fileName": "jiang-2023.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/atmosphere/atmosphere-14-01755/article_deploy/atmosphere-14-01755.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2dot1-atmosphere-14-01755"
+          },
+          {
+            "id": "sec2dot2-atmosphere-14-01755"
+          },
+          {
+            "id": "sec3dot1-atmosphere-14-01755"
+          },
+          {
+            "id": "sec3dot2-atmosphere-14-01755"
+          },
+          {
+            "id": "sec3dot3-atmosphere-14-01755"
+          },
+          {
+            "id": "sec4-atmosphere-14-01755"
+          },
+          {
+            "id": "sec5-atmosphere-14-01755"
+          }
+        ]
+      },
+      "capabilities": [
+        "growth_stage_monitoring",
+        "frost_risk_warning"
+      ],
+      "retrievalKeywords": [
+        "低温",
+        "积温",
+        "播期",
+        "成熟",
+        "冷害"
+      ],
+      "applicabilityNote": "东北春玉米播期与温度试验；不是当地霜冻预警阈值或当前天气观测。"
+    },
+    {
+      "id": "ec3f00d4-c082-56dd-965f-2f3b638cad58",
+      "title": "辽宁省玉米生产技术指导意见",
+      "sourceType": "extension_guidance",
+      "authors": [
+        "辽宁省农业农村厅"
+      ],
+      "publisher": "辽宁省农业农村厅",
+      "publicationYear": 2024,
+      "version": "辽农农〔2024〕42号 / maize-evidence-v1",
+      "sourceUrl": "https://nync.ln.gov.cn/nync/index/zwgk/zszdgkwj/2024031114442896015/index.shtml",
+      "identifierType": "standard",
+      "identifier": "辽农农〔2024〕42号",
+      "licenseStatus": "citation_only",
+      "licenseRef": null,
+      "licenseNote": "政府网站标注主动公开，但未找到允许全文再加工的明确开放许可；仅登记出处，不进入 GraphRAG 全文索引。",
+      "regions": [
+        "辽宁"
+      ],
+      "stages": [
+        "播种",
+        "苗期",
+        "拔节",
+        "大喇叭口",
+        "吐丝",
+        "灌浆",
+        "成熟"
+      ],
+      "content": null,
+      "capabilities": [
+        "growth_stage_monitoring",
+        "water_nitrogen_diagnosis",
+        "waterlogging_detection",
+        "frost_risk_warning"
+      ],
+      "retrievalKeywords": [
+        "辽宁",
+        "玉米",
+        "栽培"
+      ],
+      "applicabilityNote": "仅登记官方出处，未取得明确全文再利用许可，不参与全文检索。"
+    },
+    {
+      "id": "28c104f6-3f3a-5cda-bf96-e03f31092dc6",
+      "title": "Influence of Soil Properties on Maize and Wheat Nitrogen Status Assessment from Sentinel-2 Data",
+      "sourceType": "paper",
+      "authors": [
+        "Alberto Crema",
+        "Mirco Boschetti",
+        "Francesco Nutini",
+        "Donato Cillis",
+        "Raffaele Casa"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2020,
+      "version": "2020-07-08 / maize-evidence-v1",
+      "sourceUrl": "https://doi.org/10.3390/rs12142175",
+      "identifierType": "doi",
+      "identifier": "10.3390/rs12142175",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "CC BY 4.0；保留作者、论文出处、许可链接和原文位置。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "依论文研究阶段"
+      ],
+      "capabilities": [
+        "growth_stage_monitoring",
+        "water_nitrogen_diagnosis"
+      ],
+      "retrievalKeywords": [
+        "缺氮",
+        "氮素",
+        "氮肥",
+        "土壤",
+        "pH",
+        "红边",
+        "NDRE",
+        "叶绿素"
+      ],
+      "applicabilityNote": "研究对象含玉米和硬粒小麦，试验位于意大利；土壤差异可影响氮营养反演，模型精度不能直接迁移为铁岭地块诊断精度。",
+      "content": {
+        "format": "jats-xml",
+        "fileName": "rs12142175.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/remotesensing/remotesensing-12-02175/article_deploy/remotesensing-12-02175.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2-remotesensing-12-02175"
+          },
+          {
+            "id": "sec3-remotesensing-12-02175"
+          },
+          {
+            "id": "sec4-remotesensing-12-02175"
+          },
+          {
+            "id": "sec5-remotesensing-12-02175"
+          }
+        ]
+      }
+    },
+    {
+      "id": "5400b685-43bc-5a0d-9925-0377ec574a07",
+      "title": "First Vegetation Optical Depth Mapping from Sentinel-1 C-band SAR Data over Crop Fields",
+      "sourceType": "paper",
+      "authors": [
+        "Mohammad El Hajj",
+        "Nicolas Baghdadi",
+        "Jean-Pierre Wigneron",
+        "Mehrez Zribi",
+        "Clément Albergel",
+        "Jean-Christophe Calvet",
+        "Ibrahim Fayad"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2019,
+      "version": "2019-11-25 / maize-evidence-v1",
+      "sourceUrl": "https://doi.org/10.3390/rs11232769",
+      "identifierType": "doi",
+      "identifier": "10.3390/rs11232769",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "CC BY 4.0；保留作者、论文出处、许可链接和原文位置。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "依论文研究阶段"
+      ],
+      "capabilities": [
+        "growth_stage_monitoring",
+        "water_nitrogen_diagnosis",
+        "waterlogging_detection"
+      ],
+      "retrievalKeywords": [
+        "雷达",
+        "SAR",
+        "Sentinel-1",
+        "后向散射",
+        "冠层",
+        "水分",
+        "土壤"
+      ],
+      "applicabilityNote": "农田C波段雷达植被光学厚度方法；依赖土壤、冠层与观测几何假设，不是本地水分实测或积水确证。",
+      "content": {
+        "format": "jats-xml",
+        "fileName": "rs11232769.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/remotesensing/remotesensing-11-02769/article_deploy/remotesensing-11-02769.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2-remotesensing-11-02769"
+          },
+          {
+            "id": "sec3-remotesensing-11-02769"
+          },
+          {
+            "id": "sec4-remotesensing-11-02769"
+          },
+          {
+            "id": "sec5-remotesensing-11-02769"
+          },
+          {
+            "id": "sec6-remotesensing-11-02769"
+          }
+        ]
+      }
+    },
+    {
+      "id": "7ea8e620-1fa7-529a-a583-aee3becda9bd",
+      "title": "Inundated Vegetation Mapping Using SAR Data: A Comparison of Polarization Configurations of UAVSAR L-Band and Sentinel C-Band",
+      "sourceType": "paper",
+      "authors": [
+        "Abdella Salem",
+        "Leila Hashemi-Beni"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2022,
+      "version": "2022-12-16 / maize-evidence-v1",
+      "sourceUrl": "https://doi.org/10.3390/rs14246374",
+      "identifierType": "doi",
+      "identifier": "10.3390/rs14246374",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "CC BY 4.0；保留作者、论文出处、许可链接和原文位置。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "依论文研究阶段"
+      ],
+      "capabilities": [
+        "waterlogging_detection"
+      ],
+      "retrievalKeywords": [
+        "积水",
+        "淹水",
+        "内涝",
+        "雷达",
+        "SAR",
+        "极化",
+        "后向散射"
+      ],
+      "applicabilityNote": "美国北卡罗来纳洪水研究，包含淹水植被；用于解释散射机制，不能把其分类精度或阈值迁移为辽宁玉米识别效果。",
+      "content": {
+        "format": "jats-xml",
+        "fileName": "rs14246374.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/remotesensing/remotesensing-14-06374/article_deploy/remotesensing-14-06374.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2-remotesensing-14-06374"
+          },
+          {
+            "id": "sec3-remotesensing-14-06374"
+          },
+          {
+            "id": "sec4-remotesensing-14-06374"
+          }
+        ]
+      }
+    },
+    {
+      "id": "02cf2476-59fc-5523-847f-7a1bd043bd7a",
+      "title": "Chilling Tolerance in Maize: Insights into Advances—Toward Physio-Biochemical Responses’ and QTL/Genes’ Identification",
+      "sourceType": "paper",
+      "authors": [
+        "Yun Ma",
+        "Renxiang Tan",
+        "Jiuran Zhao"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2022,
+      "version": "2022-08-09 / maize-evidence-v1",
+      "sourceUrl": "https://doi.org/10.3390/plants11162082",
+      "identifierType": "doi",
+      "identifier": "10.3390/plants11162082",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "CC BY 4.0；保留作者、论文出处、许可链接和原文位置。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "依论文研究阶段"
+      ],
+      "capabilities": [
+        "frost_risk_warning"
+      ],
+      "retrievalKeywords": [
+        "低温",
+        "冷害",
+        "霜冻",
+        "冻害",
+        "玉米",
+        "生理"
+      ],
+      "applicabilityNote": "玉米冷害响应综述；冷害与结冰霜冻不同，不能用文中试验温度直接设定本地霜冻预警阈值。",
+      "content": {
+        "format": "jats-xml",
+        "fileName": "plants11162082.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/plants/plants-11-02082/article_deploy/plants-11-02082.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2-plants-11-02082"
+          },
+          {
+            "id": "sec5-plants-11-02082"
+          }
+        ]
+      }
+    },
+    {
+      "id": "24e27bcf-d612-5fd6-bd87-1363b3d2748a",
+      "title": "Effects of Waterlogging at Different Developmental Stages on Growth, Yield and Physiological Responses of Forage Maize",
+      "sourceType": "paper",
+      "authors": [
+        "Chang-Woo Min",
+        "Il-Kyu Yoon",
+        "Min-Jun Kim",
+        "Jeong-Sung Jung",
+        "Md Atikur Rahman",
+        "Byung-Hyun Lee"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2025,
+      "version": "2025-10-15 / maize-evidence-v1",
+      "sourceUrl": "https://doi.org/10.3390/agronomy15102389",
+      "identifierType": "doi",
+      "identifier": "10.3390/agronomy15102389",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "CC BY 4.0；保留作者、论文出处、许可链接和原文位置。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "依论文研究阶段"
+      ],
+      "capabilities": [
+        "waterlogging_detection",
+        "water_nitrogen_diagnosis"
+      ],
+      "retrievalKeywords": [
+        "积水",
+        "内涝",
+        "涝害",
+        "生育期",
+        "叶绿素",
+        "玉米"
+      ],
+      "applicabilityNote": "韩国青贮玉米盆栽长期涝渍试验；支持阶段差异解释，处理天数、产量和施肥量不能直接作为辽宁籽粒玉米处方。",
+      "content": {
+        "format": "jats-xml",
+        "fileName": "agronomy15102389.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/agronomy/agronomy-15-02389/article_deploy/agronomy-15-02389.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2-agronomy-15-02389"
+          },
+          {
+            "id": "sec3-agronomy-15-02389"
+          },
+          {
+            "id": "sec4-agronomy-15-02389"
+          },
+          {
+            "id": "sec5-agronomy-15-02389"
+          }
+        ]
+      }
+    },
+    {
+      "id": "9dd85afe-c834-5538-bfbb-29054238de4a",
+      "title": "Physiological Mechanism of Waterlogging Stress on Yield of Waxy Maize at the Jointing Stage",
+      "sourceType": "paper",
+      "authors": [
+        "Xuepeng Zhang",
+        "Chao Huang",
+        "Ye Meng",
+        "Xuchen Liu",
+        "Yang Gao",
+        "Zhandong Liu",
+        "Shoutian Ma"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2023,
+      "version": "2023-08-23 / maize-evidence-v1",
+      "sourceUrl": "https://doi.org/10.3390/plants12173034",
+      "identifierType": "doi",
+      "identifier": "10.3390/plants12173034",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "CC BY 4.0；保留作者、论文出处、许可链接和原文位置。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "依论文研究阶段"
+      ],
+      "capabilities": [
+        "waterlogging_detection",
+        "water_nitrogen_diagnosis"
+      ],
+      "retrievalKeywords": [
+        "积水",
+        "内涝",
+        "涝害",
+        "拔节",
+        "糯玉米"
+      ],
+      "applicabilityNote": "河南新乡糯玉米控水试验；阶段、品种和环境与辽宁籽粒玉米不同，不能套用淹水时长阈值或减产比例。",
+      "content": {
+        "format": "jats-xml",
+        "fileName": "plants12173034.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/plants/plants-12-03034/article_deploy/plants-12-03034.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2-plants-12-03034"
+          },
+          {
+            "id": "sec3-plants-12-03034"
+          },
+          {
+            "id": "sec4-plants-12-03034"
+          },
+          {
+            "id": "sec5-plants-12-03034"
+          }
+        ]
+      }
+    },
+    {
+      "id": "102dfa5f-724d-57ff-a8c3-f1f4eb3b8400",
+      "title": "Sentinel-2 Products",
+      "sourceType": "product_documentation",
+      "authors": [
+        "Copernicus / ESA"
+      ],
+      "publisher": "Copernicus / ESA",
+      "publicationYear": null,
+      "version": "catalogue-accessed-2026-10-18",
+      "sourceUrl": "https://sentiwiki.copernicus.eu/web/s2-products",
+      "identifierType": "internal",
+      "identifier": "https://sentiwiki.copernicus.eu/web/s2-products",
+      "licenseStatus": "citation_only",
+      "licenseRef": null,
+      "licenseNote": "已核实官方入口可访问；本次仅登记链接，未核验正文再利用许可。原始发布年份未核验，version记录目录核验日期。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "全生育期"
+      ],
+      "capabilities": [
+        "growth_stage_monitoring",
+        "water_nitrogen_diagnosis"
+      ],
+      "retrievalKeywords": [
+        "Sentinel-2",
+        "光学",
+        "云质量"
+      ],
+      "applicabilityNote": "仅来源目录，不参与原文检索；动态气象产品需另行按发布时间采集，不能充当当前天气事实。",
+      "content": null
+    },
+    {
+      "id": "fc232dec-76f4-5ab4-9e89-05c854e0ccba",
+      "title": "Sentinel-1 Products",
+      "sourceType": "product_documentation",
+      "authors": [
+        "Copernicus / ESA"
+      ],
+      "publisher": "Copernicus / ESA",
+      "publicationYear": null,
+      "version": "catalogue-accessed-2026-10-18",
+      "sourceUrl": "https://sentiwiki.copernicus.eu/web/s1-products",
+      "identifierType": "internal",
+      "identifier": "https://sentiwiki.copernicus.eu/web/s1-products",
+      "licenseStatus": "citation_only",
+      "licenseRef": null,
+      "licenseNote": "已核实官方入口可访问；本次仅登记链接，未核验正文再利用许可。原始发布年份未核验，version记录目录核验日期。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "全生育期"
+      ],
+      "capabilities": [
+        "growth_stage_monitoring",
+        "water_nitrogen_diagnosis",
+        "waterlogging_detection"
+      ],
+      "retrievalKeywords": [
+        "Sentinel-1",
+        "雷达",
+        "SAR"
+      ],
+      "applicabilityNote": "仅来源目录，不参与原文检索；动态气象产品需另行按发布时间采集，不能充当当前天气事实。",
+      "content": null
+    },
+    {
+      "id": "1f33ac78-1637-5309-9815-59c278d6d72a",
+      "title": "SoilGrids",
+      "sourceType": "product_documentation",
+      "authors": [
+        "ISRIC"
+      ],
+      "publisher": "ISRIC",
+      "publicationYear": null,
+      "version": "catalogue-accessed-2026-10-18",
+      "sourceUrl": "https://www.isric.org/explore/soilgrids",
+      "identifierType": "internal",
+      "identifier": "https://www.isric.org/explore/soilgrids",
+      "licenseStatus": "citation_only",
+      "licenseRef": null,
+      "licenseNote": "已核实官方入口可访问；本次仅登记链接，未核验正文再利用许可。原始发布年份未核验，version记录目录核验日期。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "全生育期"
+      ],
+      "capabilities": [
+        "water_nitrogen_diagnosis"
+      ],
+      "retrievalKeywords": [
+        "土壤",
+        "背景",
+        "分辨率"
+      ],
+      "applicabilityNote": "仅来源目录，不参与原文检索；动态气象产品需另行按发布时间采集，不能充当当前天气事实。",
+      "content": null
+    },
+    {
+      "id": "b85dba0f-ed51-56c4-ae19-787ca40a684c",
+      "title": "全国农业气象灾害风险预警",
+      "sourceType": "extension_guidance",
+      "authors": [
+        "中央气象台"
+      ],
+      "publisher": "中央气象台",
+      "publicationYear": null,
+      "version": "catalogue-accessed-2026-10-18",
+      "sourceUrl": "https://www.nmc.cn/publish/nongyeqixiang/quanguonongyeqixiangzaihaifengxianyujing/index.html",
+      "identifierType": "internal",
+      "identifier": "https://www.nmc.cn/publish/nongyeqixiang/quanguonongyeqixiangzaihaifengxianyujing/index.html",
+      "licenseStatus": "citation_only",
+      "licenseRef": null,
+      "licenseNote": "已核实官方入口可访问；本次仅登记链接，未核验正文再利用许可。原始发布年份未核验，version记录目录核验日期。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "全生育期"
+      ],
+      "capabilities": [
+        "waterlogging_detection",
+        "frost_risk_warning"
+      ],
+      "retrievalKeywords": [
+        "农业气象",
+        "霜冻",
+        "积水"
+      ],
+      "applicabilityNote": "仅来源目录，不参与原文检索；动态气象产品需另行按发布时间采集，不能充当当前天气事实。",
+      "content": null
+    }
+  ]
+}

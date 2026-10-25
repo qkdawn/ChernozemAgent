@@ -1,0 +1,273 @@
+{
+  "schemaVersion": "1.0",
+  "packId": "growth-monitoring-v1",
+  "title": "东北黑土地玉米长势监测首批知识包",
+  "crop": "corn",
+  "regions": [
+    "东北中国",
+    "辽宁",
+    "吉林",
+    "黑龙江",
+    "内蒙古东部"
+  ],
+  "capabilities": [
+    "growth_stage_monitoring"
+  ],
+  "sources": [
+    {
+      "id": "ddcc2e62-3ec3-442a-91a0-a0c4b9927579",
+      "title": "Evaluation of Sentinel-2 Red-Edge Bands for Empirical Estimation of Green LAI and Chlorophyll Content",
+      "sourceType": "paper",
+      "authors": [
+        "Jesús Delegido",
+        "Jochem Verrelst",
+        "Luis Alonso",
+        "José Moreno"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2011,
+      "version": "2011-07-08",
+      "sourceUrl": "https://doi.org/10.3390/s110707063",
+      "identifierType": "doi",
+      "identifier": "10.3390/s110707063",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/3.0/",
+      "licenseNote": "作者保留版权；文章按 CC BY 3.0 发布，可在保留署名时处理全文。",
+      "regions": [
+        "通用方法"
+      ],
+      "stages": [
+        "冠层形成后"
+      ],
+      "content": {
+        "format": "jats-xml",
+        "fileName": "delegido-2011.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/sensors/sensors-11-07063/article_deploy/sensors-11-07063.xml"
+        ],
+        "sections": [
+          {
+            "title": "Spectral Indices"
+          },
+          {
+            "title": "LAI Estimation"
+          },
+          {
+            "title": "Canopy Chlorophyll Estimation"
+          },
+          {
+            "title": "Discussion"
+          },
+          {
+            "title": "Conclusions"
+          }
+        ]
+      },
+      "capabilities": [
+        "growth_stage_monitoring"
+      ],
+      "retrievalKeywords": [
+        "红边",
+        "叶绿素",
+        "冠层",
+        "LAI",
+        "NDRE"
+      ],
+      "applicabilityNote": "红边、叶绿素与LAI通用方法；研究并非辽宁当前地块，不能单凭指数确诊缺氮。"
+    },
+    {
+      "id": "bc25a5d9-5cd3-4ea3-b402-c7aa815aeb38",
+      "title": "Mapping of Phenological Traits in Northeast China Maize (Zea mays L.)",
+      "sourceType": "paper",
+      "authors": [
+        "Xiaowei Wang",
+        "Xiaoyu Li",
+        "Jiatong Gu",
+        "Wenqi Shi",
+        "Haigen Zhao",
+        "Chen Sun",
+        "Songcai You"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2022,
+      "version": "2022-10-20",
+      "sourceUrl": "https://doi.org/10.3390/agronomy12102585",
+      "identifierType": "doi",
+      "identifier": "10.3390/agronomy12102585",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "作者保留版权；文章按 CC BY 4.0 发布，可在保留署名时处理全文。",
+      "regions": [
+        "辽宁",
+        "吉林",
+        "黑龙江",
+        "内蒙古东部"
+      ],
+      "stages": [
+        "播种",
+        "出苗",
+        "三叶",
+        "七叶",
+        "拔节",
+        "抽雄",
+        "开花",
+        "吐丝",
+        "成熟"
+      ],
+      "content": {
+        "format": "jats-xml",
+        "fileName": "wang-2022.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/agronomy/agronomy-12-02585/article_deploy/agronomy-12-02585.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2dot1-agronomy-12-02585"
+          },
+          {
+            "id": "sec2dot2-agronomy-12-02585"
+          },
+          {
+            "id": "sec3dot1-agronomy-12-02585"
+          },
+          {
+            "id": "sec3dot4-agronomy-12-02585"
+          },
+          {
+            "id": "sec4-agronomy-12-02585"
+          },
+          {
+            "id": "sec5-agronomy-12-02585"
+          }
+        ]
+      },
+      "capabilities": [
+        "growth_stage_monitoring"
+      ],
+      "retrievalKeywords": [
+        "生育期",
+        "物候",
+        "积温",
+        "播种",
+        "成熟"
+      ],
+      "applicabilityNote": "东北区域物候研究；地块生育期仍需播期、品种与当年天气共同判断。"
+    },
+    {
+      "id": "1513976e-ecf9-4284-bce0-a01de867be71",
+      "title": "Effects of Temperature on Growth and Grain Maturity of Spring Maize in Northeast China: A Study of Different Sowing Dates",
+      "sourceType": "paper",
+      "authors": [
+        "Lixia Jiang",
+        "Ming Wang",
+        "Zheng Chu",
+        "Yonggang Gao",
+        "Lifeng Guo",
+        "Shengtai Ji",
+        "Lanqi Jiang",
+        "Lijuan Gong"
+      ],
+      "publisher": "MDPI AG",
+      "publicationYear": 2023,
+      "version": "2023-11-29",
+      "sourceUrl": "https://doi.org/10.3390/atmos14121755",
+      "identifierType": "doi",
+      "identifier": "10.3390/atmos14121755",
+      "licenseStatus": "public",
+      "licenseRef": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNote": "作者保留版权；文章按 CC BY 4.0 发布，可在保留署名时处理全文。",
+      "regions": [
+        "黑龙江",
+        "东北平原"
+      ],
+      "stages": [
+        "播种",
+        "出苗",
+        "营养生长",
+        "开花",
+        "灌浆",
+        "成熟"
+      ],
+      "content": {
+        "format": "jats-xml",
+        "fileName": "jiang-2023.xml",
+        "urls": [
+          "https://mdpi-res.com/d_attachment/atmosphere/atmosphere-14-01755/article_deploy/atmosphere-14-01755.xml"
+        ],
+        "sections": [
+          {
+            "id": "sec2dot1-atmosphere-14-01755"
+          },
+          {
+            "id": "sec2dot2-atmosphere-14-01755"
+          },
+          {
+            "id": "sec3dot1-atmosphere-14-01755"
+          },
+          {
+            "id": "sec3dot2-atmosphere-14-01755"
+          },
+          {
+            "id": "sec3dot3-atmosphere-14-01755"
+          },
+          {
+            "id": "sec4-atmosphere-14-01755"
+          },
+          {
+            "id": "sec5-atmosphere-14-01755"
+          }
+        ]
+      },
+      "capabilities": [
+        "growth_stage_monitoring"
+      ],
+      "retrievalKeywords": [
+        "低温",
+        "积温",
+        "播期",
+        "成熟",
+        "冷害"
+      ],
+      "applicabilityNote": "东北春玉米播期与温度试验；不是当地霜冻预警阈值或当前天气观测。"
+    },
+    {
+      "id": "f31586ad-759a-4c10-ba58-8faa8279d5bd",
+      "title": "辽宁省玉米生产技术指导意见",
+      "sourceType": "extension_guidance",
+      "authors": [
+        "辽宁省农业农村厅"
+      ],
+      "publisher": "辽宁省农业农村厅",
+      "publicationYear": 2024,
+      "version": "辽农农〔2024〕42号",
+      "sourceUrl": "https://nync.ln.gov.cn/nync/index/zwgk/zszdgkwj/2024031114442896015/index.shtml",
+      "identifierType": "standard",
+      "identifier": "辽农农〔2024〕42号",
+      "licenseStatus": "citation_only",
+      "licenseRef": null,
+      "licenseNote": "政府网站标注主动公开，但未找到允许全文再加工的明确开放许可；仅登记出处，不进入 GraphRAG 全文索引。",
+      "regions": [
+        "辽宁"
+      ],
+      "stages": [
+        "播种",
+        "苗期",
+        "拔节",
+        "大喇叭口",
+        "吐丝",
+        "灌浆",
+        "成熟"
+      ],
+      "content": null,
+      "capabilities": [
+        "growth_stage_monitoring"
+      ],
+      "retrievalKeywords": [
+        "辽宁",
+        "玉米",
+        "栽培"
+      ],
+      "applicabilityNote": "仅登记官方出处，未取得明确全文再利用许可，不参与全文检索。"
+    }
+  ]
+}

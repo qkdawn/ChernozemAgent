@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@mariozechner/pi-agent-core";
+import type { AnalysisObjective, AnalysisResult } from "@chernozem/contracts";
 
 export interface TaskScope {
   organizationId: string;
@@ -14,15 +14,30 @@ export interface TaskScope {
 export interface AgentEventRecord {
   runId: string;
   sequence: number;
-  type: AgentEvent["type"];
+  type: "workflow_start" | "tool_execution_start" | "tool_execution_end" | "workflow_end";
   occurredAt: string;
   toolCallId?: string;
   toolName?: string;
   isError?: boolean;
+  resultId?: string;
+  resultStatus?: AnalysisResult<unknown>["status"];
 }
 
 export interface AgentEventSink {
   append(record: AgentEventRecord): Promise<void>;
+}
+
+export interface CornAgentRunRequest {
+  objective: AnalysisObjective;
+  scope: TaskScope;
+  tools: import("./skill-runner.js").ControlledAnalysisTool[];
+  prompt?: string;
+}
+
+export interface CornAgentRunResult {
+  runId: string;
+  finalMessage: string;
+  results: AnalysisResult<unknown>[];
 }
 
 export interface DomainToolEnvelope {

@@ -6,4 +6,6 @@ coverage/
 !.env.example
 runtime/
 *.log
+__pycache__/
 .DS_Store
+.gstack/
