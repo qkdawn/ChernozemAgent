@@ -1,4 +1,4 @@
-export const WATER_NITROGEN_METHOD_VERSION = "water-nitrogen-v4" as const;
+export const WATER_NITROGEN_METHOD_VERSION = "water-nitrogen-v5" as const;
 export type CropCode = "corn" | "soybean" | "rice";
 export type AnalysisObjective = "growth_stage_monitoring" | "water_nitrogen_diagnosis" | "waterlogging_detection" | "frost_risk_warning";
 export type TaskStatus = "planned" | "running" | "needs_input" | "needs_data" | "needs_review" | "partial" | "completed" | "failed" | "cancelled";

@@ -1106,7 +1106,7 @@ describe("analysis API", () => {
         return [...testTools(field.id, "analyze_radar_change", "analyze_weather_event", "analyze_terrain_susceptibility", "get_soil_background"), { name: "assess_water_nitrogen_evidence", execute: async ({ taskId }: { taskId: string }) => ({
           id: "assessment-context-test", taskId, kind: "assessment", status: "succeeded", toolVersion: "test", createdAt: "2026-08-18T00:01:00.000Z",
           execution: testExecution("assess_water_nitrogen_evidence", field.id),
-          summary: "测试田况。", result: { assessment: "uniform", referenceDate: "2026-06-26", observationAgeDays: 1, observationStatus: "current", observation: { ndvi: null, ndre: null, reci: null, msavi: null, ndmi: null, ndwi: null, variationStatus: "uniform" }, previousInspections: inspections, methodVersion: "water-nitrogen-v4", evidenceLevel: "optical_only", zones: [], sourceAlignment: [], fieldComparison: { status: "absent", lowValueRecords: [], referenceRecords: [], generalRecords: [], pairs: [] } },
+          summary: "测试田况。", result: { assessment: "uniform", referenceDate: "2026-06-26", observationAgeDays: 1, observationStatus: "current", observation: { ndvi: null, ndre: null, reci: null, msavi: null, ndmi: null, ndwi: null, variationStatus: "uniform" }, previousInspections: inspections, methodVersion: "water-nitrogen-v5", evidenceLevel: "optical_only", zones: [], sourceAlignment: [], fieldComparison: { status: "absent", lowValueRecords: [], referenceRecords: [], generalRecords: [], pairs: [] } },
           sources: [{ source: "sentinel-2", date: "2026-06-26", quality: "usable", note: "test" }], findings: [], artifacts: [], limitations: [], nextActions: [], error: null,
         }) }];
       },

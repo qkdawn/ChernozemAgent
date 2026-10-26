@@ -18,6 +18,7 @@ describe("analysis document writer", () => {
     expect(generated.actions[0]?.label).toBe("比较冠层完整度");
     expect(generated.actions[0]?.decisionEffect).toContain("现场叶色");
     expect(generated.generation).toMatchObject({ mode: "model_generated", fallbackReason: null, modelId: "test-model" });
+    expect(generated.generation.promptVersion).toBe("analysis-brief-writer-v6");
     expect(generated.evidence[0]).toMatchObject({
       references: [{ resultId: "optical-1", path: "/current/metrics/ndvi/mean" }],
       sourceDates: [{ source: "sentinel-2", date: "2026-07-31" }],
@@ -33,6 +34,8 @@ describe("analysis document writer", () => {
     expect(request.systemPrompt).toContain("距任务结束日期");
     expect(request.systemPrompt).toContain("不能靠文字推断");
     expect(request.systemPrompt).toContain("决策框架");
+    expect(request.systemPrompt).toContain("/spatialPrioritySummary");
+    expect(request.systemPrompt).toContain("overview 和 document 必须明确说出雷达/低洼地形交集是否改变");
   });
 
   it.each([
