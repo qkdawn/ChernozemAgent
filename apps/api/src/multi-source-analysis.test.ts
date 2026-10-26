@@ -296,7 +296,7 @@ describe("water nitrogen and frost assessment tools", () => {
     await store.save({ ...resultBase("soil_background"), kind: "soil_background", status: "succeeded", result: { available: true }, artifacts: [], sources: [{ source: "soilgrids-250m", date: null, quality: "usable", note: "test" }] } as any);
     const tool = service.createWaterNitrogenTools(field(), [], range()).find((item) => item.name === "assess_water_nitrogen_evidence")!;
     const result = await tool.execute({ taskId });
-    expect(result).toMatchObject({ status: "succeeded", toolVersion: "water-nitrogen-assessment-v3", result: { methodVersion: "water-nitrogen-v4", assessment: "variation_visible", cropStage: { label: "拔节期" }, observationCount: 2, validCoverageFraction: 0.9, attentionAreaHa: 2, attentionAreaFraction: 0.2, latestChange: { fromDate: "2026-06-10", toDate: "2026-06-20", ndviDelta: -0.1 }, zones: [{ areaHa: 2, areaFraction: 0.2 }], fieldComparison: { status: "absent" } } });
+    expect(result).toMatchObject({ status: "succeeded", toolVersion: "water-nitrogen-assessment-v4", result: { methodVersion: "water-nitrogen-v5", assessment: "variation_visible", cropStage: { label: "拔节期" }, observationCount: 2, validCoverageFraction: 0.9, attentionAreaHa: 2, attentionAreaFraction: 0.2, latestChange: { fromDate: "2026-06-10", toDate: "2026-06-20", ndviDelta: -0.1 }, zones: [{ areaHa: 2, areaFraction: 0.2 }], fieldComparison: { status: "absent" } } });
     expect(result.result).not.toHaveProperty("interpretation");
     expect(result.result).not.toHaveProperty("investigation");
     expect(result.result).not.toHaveProperty("checks");
@@ -332,7 +332,7 @@ describe("water nitrogen and frost assessment tools", () => {
 
     await store.save({ ...resultBase("optical_condition"), kind: "optical_condition", status: "succeeded", result: { current: { observationDate: "2026-06-20", metrics: { ndvi: { mean: 0.7 } } }, changes: [], zones: [] }, artifacts: [], sources: [{ source: "sentinel-2", date: "2026-06-20", quality: "usable", note: "test" }] } as any);
     const assessment = await tools.find((tool) => tool.name === "assess_water_nitrogen_evidence")!.execute({ taskId });
-    expect(assessment).toMatchObject({ status: "succeeded", result: { methodVersion: "water-nitrogen-v4", assessment: "uniform" } });
+    expect(assessment).toMatchObject({ status: "succeeded", result: { methodVersion: "water-nitrogen-v5", assessment: "uniform" } });
     expect(assessment.sources.map((source) => source.source)).toEqual(["sentinel-2"]);
   });
 
@@ -501,6 +501,7 @@ describe("water nitrogen and frost assessment tools", () => {
     const result = await tool.execute({ taskId });
     expect(result).toMatchObject({ status: "succeeded", result: { evidenceLevel: "multi_source", zones: [{ radarOverlap: { status: "computed", overlapFraction: 1, contributingZoneIds: ["zone-1-1"] }, metricDeviations: { ndre: -0.08, ndmi: -0.09 } }] } });
     expect((result.result as WaterNitrogenEvidencePayload).zones[0]!.radarOverlap.overlapAreaHa).toBeGreaterThan(0);
+    expect(result.result).toMatchObject({ spatialPrioritySummary: { changesAnyPriority: true, orderedZoneIds: ["water-nitrogen-zone-1-1"] }, zones: [{ spatialPriority: { status: "computed", changesPriority: true, preferredBecause: "radar_overlap" } }] });
     expect(result.sources).toEqual(expect.arrayContaining([expect.objectContaining({ source: "sentinel-1", date: "2026-06-20", role: "context" })]));
     expect(result.sources).not.toContainEqual(expect.objectContaining({ date: "2026-08-04" }));
     expect(result.findings[0]?.sourceDates).toEqual([{ source: "sentinel-2", date: "2026-06-20" }]);
@@ -526,6 +527,7 @@ describe("water nitrogen and frost assessment tools", () => {
     const result = await service.createWaterNitrogenTools(field(), [], range()).find((tool) => tool.name === "assess_water_nitrogen_evidence")!.execute({ taskId });
 
     expect(result).toMatchObject({ status: "partial", result: { zones: [{ id: "water-nitrogen-optical-low", lowlandOverlap: { status: "computed", overlapFraction: 1 } }], sourceAlignment: expect.arrayContaining([expect.objectContaining({ kind: "weather_event", status: "unusable" })]) } });
+    expect(result.result).toMatchObject({ spatialPrioritySummary: { changesAnyPriority: true, orderedZoneIds: ["water-nitrogen-optical-low"] }, zones: [{ spatialPriority: { status: "computed", changesPriority: true, preferredBecause: "lowland_overlap" } }] });
     expect(result.sources.map((source) => source.source)).toEqual(["sentinel-2", "copernicus-dem"]);
     expect(result.result).not.toHaveProperty("interpretation");
   });
@@ -568,6 +570,7 @@ describe("water nitrogen and frost assessment tools", () => {
     const tool = service.createWaterNitrogenTools(field(), [], range()).find((item) => item.name === "assess_water_nitrogen_evidence")!;
     const result = await tool.execute({ taskId });
     expect(result).toMatchObject({ status: "partial", result: { assessment: "variation_visible", zones: [{ radarOverlap: { status: "unavailable", overlapAreaHa: null } }], sourceAlignment: expect.arrayContaining([expect.objectContaining({ kind: "weather_event", status: "unusable" }), expect.objectContaining({ kind: "radar_change", status: "unusable" })]) } });
+    expect(result.result).toMatchObject({ spatialPrioritySummary: { changesAnyPriority: null, orderedZoneIds: ["water-nitrogen-zone-1"] }, zones: [{ spatialPriority: { status: "unavailable", changesPriority: null, preferredBecause: null } }] });
     expect(result.findings[0]?.zoneRef).toBeNull();
     expect(result.sources).not.toContainEqual(expect.objectContaining({ source: "era5-land" }));
     expect(result.sources).not.toContainEqual(expect.objectContaining({ source: "sentinel-1" }));
@@ -586,8 +589,30 @@ describe("water nitrogen and frost assessment tools", () => {
     }, artifacts: [], sources: [{ source: "sentinel-1", date: "2026-06-10", quality: "usable", note: "before" }, { source: "sentinel-1", date: "2026-06-20", quality: "usable", note: "after" }] } as any);
     const result = await service.createWaterNitrogenTools(field(), [], range()).find((tool) => tool.name === "assess_water_nitrogen_evidence")!.execute({ taskId });
     expect(result).toMatchObject({ status: "succeeded", result: { evidenceLevel: "multi_source", zones: [{ radarOverlap: { status: "computed", overlapAreaHa: 0, overlapFraction: 0, contributingZoneIds: [] } }] } });
+    expect(result.result).toMatchObject({ spatialPrioritySummary: { changesAnyPriority: false, orderedZoneIds: ["water-nitrogen-zone-1"] }, zones: [{ spatialPriority: { status: "computed", changesPriority: false, preferredBecause: "none" } }] });
     expect(result.sources).toContainEqual(expect.objectContaining({ source: "sentinel-1" }));
     expect(result.result).not.toHaveProperty("interpretation");
+  });
+
+  it("orders radar-intersecting weak zones before measured non-intersecting zones", async () => {
+    const store = createMemoryAnalysisResultStore();
+    const service = new MultiSourceAnalysisService(store, "python", runners());
+    const ring = (x: number) => [[x, 42.3], [x + 0.01, 42.3], [x + 0.01, 42.31], [x, 42.31], [x, 42.3]];
+    await store.save({ ...resultBase("optical_condition"), kind: "optical_condition", status: "succeeded", result: {
+      current: { observationDate: "2026-06-20", metrics: { ndvi: { mean: 0.7 } } }, changes: [],
+      zones: [{ id: "first", class: "below_average", areaHa: 1, zone: ring(123.8) }, { id: "second", class: "below_average", areaHa: 1, zone: ring(123.82) }],
+    }, artifacts: [], sources: [{ source: "sentinel-2", date: "2026-06-20", quality: "usable", note: "test" }] } as any);
+    await store.save({ ...resultBase("radar_change"), kind: "radar_change", status: "succeeded", result: {
+      beforeDate: "2026-06-10", afterDate: "2026-06-20", comparable: true, zones: [{ id: "radar-second", class: "strong_decrease", zone: ring(123.82) }],
+    }, artifacts: [], sources: [{ source: "sentinel-1", date: "2026-06-20", quality: "usable", note: "test" }] } as any);
+    await store.save({ ...resultBase("terrain_susceptibility"), kind: "terrain_susceptibility", status: "succeeded", result: {
+      zones: [{ id: "low-second", class: "low", zone: ring(123.82) }],
+    }, artifacts: [], sources: [{ source: "copernicus-dem", date: null, quality: "usable", note: "test" }] } as any);
+    const result = await service.createWaterNitrogenTools(field(), [], range()).find((tool) => tool.name === "assess_water_nitrogen_evidence")!.execute({ taskId });
+    expect(result.result).toMatchObject({
+      spatialPrioritySummary: { changesAnyPriority: true, orderedZoneIds: ["water-nitrogen-second", "water-nitrogen-first"] },
+      zones: [{ spatialPriority: { changesPriority: false, preferredBecause: "none" } }, { spatialPriority: { changesPriority: true, preferredBecause: "radar_and_lowland" } }],
+    });
   });
 
   it("does not use a stale optical observation as the current water-nitrogen state", async () => {
@@ -613,7 +638,7 @@ describe("water nitrogen and frost assessment tools", () => {
 
     expect(result).toMatchObject({
       status: "partial",
-      toolVersion: "water-nitrogen-assessment-v3",
+      toolVersion: "water-nitrogen-assessment-v4",
       result: { assessment: "uniform", referenceDate: "2026-06-20" },
       sources: [{ source: "sentinel-2", date: "2026-06-20", quality: "partial", role: "observation" }],
       error: null,
@@ -675,6 +700,7 @@ describe("water nitrogen and frost assessment tools", () => {
     await store.save({ ...resultBase("radar_change"), kind: "radar_change", status: "succeeded", result: { beforeDate: "2026-06-10", afterDate: "2026-06-20", comparable: true, zones: [{ id: "broken", class: "strong_decrease", zone: [[123.8, 42.3]] }] }, artifacts: [], sources: [] } as any);
     const result = await service.createWaterNitrogenTools(field(), [], range()).find((tool) => tool.name === "assess_water_nitrogen_evidence")!.execute({ taskId });
     expect(result).toMatchObject({ status: "partial", result: { zones: [{ radarOverlap: { status: "invalid_geometry", overlapAreaHa: null } }] } });
+    expect(result.result).toMatchObject({ spatialPrioritySummary: { changesAnyPriority: null }, zones: [{ spatialPriority: { status: "unavailable", changesPriority: null } }] });
     expect(result.limitations.join(" ")).toContain("空间交集未计算成功");
   });
 

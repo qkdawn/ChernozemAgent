@@ -15,7 +15,7 @@ const RADAR_TOOL_VERSION = "radar-change-v1";
 const WEATHER_TOOL_VERSION = "weather-event-v1";
 const TERRAIN_TOOL_VERSION = "terrain-susceptibility-v1";
 const SOIL_TOOL_VERSION = "soil-background-v1";
-const WATER_NITROGEN_TOOL_VERSION = "water-nitrogen-assessment-v3";
+const WATER_NITROGEN_TOOL_VERSION = "water-nitrogen-assessment-v4";
 const WATERLOGGING_TOOL_VERSION = "waterlogging-assessment-v2";
 const FROST_TOOL_VERSION = "frost-assessment-v2";
 export const MAX_RADAR_PAIR_DAYS = 24;
@@ -149,10 +149,31 @@ export interface WaterNitrogenZone {
   areaFraction: number | null;
   radarOverlap: SpatialOverlap;
   lowlandOverlap: SpatialOverlap;
+  spatialPriority: SpatialPriority;
   inspectionRefs: Array<{ taskId: string; findingId: string }>;
   inspectionLocationStatus: "computed" | "invalid_input" | "not_evaluated";
   zone: number[][];
   holes?: number[][][];
+}
+
+export interface SpatialPriority {
+  status: "computed" | "unavailable" | "not_applicable";
+  changesPriority: boolean | null;
+  preferredBecause: "radar_overlap" | "lowland_overlap" | "radar_and_lowland" | "none" | null;
+  note: string;
+}
+
+/** Only measured positive footprint overlap can promote a below-average optical zone. */
+function spatialPriority(radar: SpatialOverlap, lowland: SpatialOverlap): SpatialPriority {
+  const measuredRadar = radar.status === "computed" && radar.overlapAreaHa !== null && Number.isFinite(radar.overlapAreaHa) && radar.overlapAreaHa >= 0;
+  const measuredLowland = lowland.status === "computed" && lowland.overlapAreaHa !== null && Number.isFinite(lowland.overlapAreaHa) && lowland.overlapAreaHa >= 0;
+  if (!measuredRadar && !measuredLowland) return { status: "unavailable", changesPriority: null, preferredBecause: null, note: "雷达与低洼交集均不可计算，无法据此调整弱区核查顺序。" };
+  const radarPositive = measuredRadar && radar.overlapAreaHa! > 0;
+  const lowlandPositive = measuredLowland && lowland.overlapAreaHa! > 0;
+  if (radarPositive && lowlandPositive) return { status: "computed", changesPriority: true, preferredBecause: "radar_and_lowland", note: "与雷达变化区和低洼区相交，应优先于无相交弱区核查。" };
+  if (radarPositive) return { status: "computed", changesPriority: true, preferredBecause: "radar_overlap", note: "与雷达变化区相交，应优先于无相交弱区核查。" };
+  if (lowlandPositive) return { status: "computed", changesPriority: true, preferredBecause: "lowland_overlap", note: "与低洼区相交，应优先于无相交弱区核查。" };
+  return { status: "computed", changesPriority: false, preferredBecause: "none", note: "已测雷达或低洼区均无交集，多源空间证据未改变先看哪块弱区。" };
 }
 
 export interface SoilBackgroundPayload {
@@ -198,6 +219,7 @@ export interface WaterNitrogenEvidencePayload {
     variationStatus: "visible" | "uniform";
   };
   zones: WaterNitrogenZone[];
+  spatialPrioritySummary: { changesAnyPriority: boolean | null; orderedZoneIds: string[] };
   previousInspections: WaterNitrogenInspectionContext[];
   inspectionMatches: WaterNitrogenInspectionMatch[];
   evidenceLevel: "optical_only" | "multi_source" | "field_comparison";
@@ -656,18 +678,25 @@ export class MultiSourceAnalysisService {
     const zones: WaterNitrogenZone[] = optical.result.zones.filter((zone) => zone.class === "below_average").map((zone) => {
       const locations = alignedInspections.map((inspection) => ({ inspection, inside: observationInsideZone([inspection.location.longitude, inspection.location.latitude], zone.zone, zone.holes) }));
       const areaHa = finiteNumber(zone.areaHa);
+      const radarOverlap = measureSpatialOverlap(zone.zone, radarAligned && radar?.result ? { resultId: radar.id, zones: radar.result.zones.filter((candidate) => candidate.class === "strong_decrease" || candidate.class === "strong_increase") } : null, zone.holes);
+      const lowlandOverlap = measureSpatialOverlap(zone.zone, terrainAligned && terrain?.result ? { resultId: terrain.id, zones: terrain.result.zones.filter((candidate) => candidate.class === "low") } : null, zone.holes);
       return {
         id: `water-nitrogen-${zone.id}`, opticalZoneId: zone.id,
         meanNdvi: finiteNumber(zone.meanNdvi), ndviDeviation: finiteNumber(zone.deviation), metricDeviations: zone.metricDeviations ?? null,
         areaHa, areaFraction: areaHa !== null && field.areaHa > 0 ? areaHa / field.areaHa : null,
-        radarOverlap: measureSpatialOverlap(zone.zone, radarAligned && radar?.result ? { resultId: radar.id, zones: radar.result.zones.filter((candidate) => candidate.class === "strong_decrease" || candidate.class === "strong_increase") } : null, zone.holes),
-        lowlandOverlap: measureSpatialOverlap(zone.zone, terrainAligned && terrain?.result ? { resultId: terrain.id, zones: terrain.result.zones.filter((candidate) => candidate.class === "low") } : null, zone.holes),
+        radarOverlap, lowlandOverlap, spatialPriority: spatialPriority(radarOverlap, lowlandOverlap),
         inspectionRefs: locations.filter((location) => location.inside === true).map(({ inspection: { taskId, findingId } }) => ({ taskId, findingId })),
         inspectionLocationStatus: !locations.length ? "not_evaluated" : locations.some((location) => location.inside === null) ? "invalid_input" : "computed",
         zone: zone.zone,
         ...(zone.holes ? { holes: zone.holes } : {}),
       };
     });
+    // Stable order within each group is the optical zone order; no overlap magnitude ranking is implied.
+    const spatialPrioritySummary: WaterNitrogenEvidencePayload["spatialPrioritySummary"] = {
+      changesAnyPriority: zones.some((zone) => zone.spatialPriority.changesPriority === true) ? true
+        : zones.length > 0 && zones.every((zone) => zone.spatialPriority.changesPriority === false) ? false : null,
+      orderedZoneIds: [...zones.filter((zone) => zone.spatialPriority.changesPriority === true), ...zones.filter((zone) => zone.spatialPriority.changesPriority !== true)].map((zone) => zone.id),
+    };
     const attentionAreaHa = zones.every((zone) => zone.areaHa !== null) ? zones.reduce((sum, zone) => sum + zone.areaHa!, 0) : null;
     const attentionAreaFraction = attentionAreaHa !== null && field.areaHa > 0 ? attentionAreaHa / field.areaHa : null;
     const observationStatus = opticalAgeDays !== null && opticalAgeDays <= WATER_NITROGEN_MAX_OPTICAL_AGE_DAYS ? "current" : "stale";
@@ -677,7 +706,7 @@ export class MultiSourceAnalysisService {
       cropStage: usable(stage) ? stage!.result ?? null : null, observationCount: optical.result.observations?.length ?? 1,
       validCoverageFraction: optical.result.current.quality?.validFraction ?? null, latestChange,
       attentionAreaHa, attentionAreaFraction, observationAgeDays: opticalAgeDays, observationStatus,
-      observation, zones, previousInspections, inspectionMatches, evidenceLevel, sourceAlignment, fieldComparison,
+      observation, zones, spatialPrioritySummary, previousInspections, inspectionMatches, evidenceLevel, sourceAlignment, fieldComparison,
     };
     const alignedResults = [radar, weather, terrain, soil].filter((source): source is NonNullable<typeof source> => Boolean(source && sourceAlignment.some((alignment) => alignment.resultId === source.id && alignment.status === "aligned")));
     const fieldSources: AnalysisResult<unknown>["sources"] = alignedInspections.map((inspection) => ({ source: "field_observation", date: inspection.observedAt, quality: "usable", role: "field_check", note: `现场记录 ${inspection.taskId}/${inspection.findingId}` }));
