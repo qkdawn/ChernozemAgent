@@ -256,3 +256,5 @@ GraphRAG 索引失败只影响扩展解释，不影响上述确定性工具链�
 - 水氮任务验证无任务田况浏览、多源工具顺序、光谱差异定位、独立支持证据、雷达 14 天窗口、天气事件窗口、来源角色和可选现场记录；单期光学指标不得命名为水氮原因区，没有经过本地验证和专业复核时不生成施肥或灌溉处方；
 
 真实地块验收还必须使用授权边界和已登记产物；测试替身只证明编排和契约，不能替代真实栅格验证。
+
+若要对已保存历史任务复跑 `analysis-brief-writer-v6` 正文（例如 S2/B3 钉死样例 `aca17f7b-34e2-442f-977b-7f0b63b56c0f` / `60b8e16b-8e4a-45d6-9b53-e5d9cd076829`），在仓库根目录配置与 API 相同的 `.env` 后执行：`pnpm --filter @chernozem/api writer:v6-rerun -- <taskId> [taskId...]`。脚本会按需就地补齐 `spatialPriority`/`spatialPrioritySummary`（有 `radarOverlap`/`lowlandOverlap` 时不重下影像），产物写到 gitignore 的 `runtime/writer-v6-rerun/<taskId>.json`。
