@@ -36,6 +36,9 @@ describe("analysis document writer", () => {
     expect(request.systemPrompt).toContain("决策框架");
     expect(request.systemPrompt).toContain("/spatialPrioritySummary");
     expect(request.systemPrompt).toContain("overview 和 document 必须明确说出雷达/低洼地形交集是否改变");
+    expect(request.systemPrompt).toContain("若成果目录没有 spatialPrioritySummary");
+    expect(request.systemPrompt).toContain("无法据此调整先看哪一块");
+    expect(request.systemPrompt).toContain("zoneRef 只能填写成果 zones/weakZones 中真实存在的分区 ID");
   });
 
   it.each([
@@ -246,6 +249,71 @@ describe("analysis document writer", () => {
     input.brief.reviewRequired = true;
     const { brief } = await createCodexAnalysisBriefWriter(runtime(JSON.stringify(document()), input)).write(input);
     expect(brief.reviewRequired).toBe(true);
+  });
+
+  it("logs unknown zoneRefs separately from evidence failures on unsafe fallback", async () => {
+    const errors: unknown[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => { errors.push(args[0]); };
+    try {
+      const output = document();
+      output.actions[0]!.zoneRef = "invented-zone";
+      await createCodexAnalysisBriefWriter(runtime(JSON.stringify(output))).write(writingInput());
+    } finally {
+      console.error = original;
+    }
+    const line = errors.map(String).find((entry) => entry.includes("analysis_brief_writer_fallback"));
+    expect(line).toBeDefined();
+    expect(JSON.parse(line!)).toMatchObject({
+      event: "analysis_brief_writer_fallback",
+      reason: "unsafe_output",
+      cause: "unknown_zone_refs",
+      evidenceRefsFailed: false,
+      unknownZoneRefs: ["invented-zone"],
+      knownZoneIds: ["zone-1"],
+      zoneRefs: ["invented-zone"],
+      taskId: "task-1",
+    });
+  });
+
+  it("logs evidence_refs_failed when references were never read", async () => {
+    const errors: unknown[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => { errors.push(args[0]); };
+    try {
+      const input = writingInput();
+      await createCodexAnalysisBriefWriter(runtime(JSON.stringify(document()), input, false)).write(input);
+    } finally {
+      console.error = original;
+    }
+    const line = errors.map(String).find((entry) => entry.includes("analysis_brief_writer_fallback"));
+    expect(JSON.parse(line!)).toMatchObject({
+      event: "analysis_brief_writer_fallback",
+      reason: "unsafe_output",
+      cause: "evidence_refs_failed",
+      evidenceRefsFailed: true,
+      unknownZoneRefs: [],
+      knownZoneIds: ["zone-1"],
+    });
+  });
+
+  it("logs parseFailure detail on malformed_output", async () => {
+    const errors: unknown[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => { errors.push(args[0]); };
+    try {
+      await createCodexAnalysisBriefWriter(runtime("not-json")).write(writingInput());
+    } finally {
+      console.error = original;
+    }
+    const line = errors.map(String).find((entry) => entry.includes("analysis_brief_writer_fallback"));
+    expect(JSON.parse(line!)).toMatchObject({
+      event: "analysis_brief_writer_fallback",
+      reason: "malformed_output",
+      cause: "parse_failure",
+      parseFailure: "json_parse_error",
+      taskId: "task-1",
+    });
   });
 
   it("publishes the computed summary when no writer is configured", async () => {

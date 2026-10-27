@@ -9,6 +9,13 @@
  *   60b8e16b-8e4a-45d6-9b53-e5d9cd076829
  *
  * Writes artifacts under runtime/writer-v6-rerun/<taskId>.json (gitignored). Does not open a PR.
+ *
+ * S2 note: spatialPriority / radarOverlap / lowlandOverlap live on water-nitrogen assessments.
+ * Growth-only historical tasks (including the pinned aca17f7b / 60b8e16b samples) usually lack
+ * those fields; ensureSpatialPriorityOnResults cannot invent overlaps without them. To leave
+ * S2 N/A, re-run water_nitrogen_diagnosis (assess_water_nitrogen_evidence) for the field/window,
+ * persist the assessment, then writer:v6-rerun that new taskId. Fallback diagnostics print to
+ * stderr as JSON lines with event=analysis_brief_writer_fallback.
  */
 import { mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";

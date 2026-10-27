@@ -54,16 +54,24 @@ export function createCodexAnalysisBriefWriter(options: {
     promptVersion: PROMPT_VERSION,
     async write(input) {
       const generatedAt = new Date().toISOString();
-      const failed = (reason: AnalysisBriefFallbackReason, results = input.results): AnalysisBriefPublication =>
-        ({ brief: fallback(input.brief, options, reason), results });
-      if (!validResultScope(input)) return failed("unsafe_output");
+      const failed = (reason: AnalysisBriefFallbackReason, results = input.results, detail?: Record<string, unknown>): AnalysisBriefPublication => {
+        logWriterFallback({ taskId: input.task.id, reason, ...detail });
+        return { brief: fallback(input.brief, options, reason), results };
+      };
+      if (!validResultScope(input)) return failed("unsafe_output", input.results, { cause: "invalid_result_scope" });
       const evidence = new AnalysisEvidence({ task: input.task, store: options.store,
         ...(input.investigationTools ? { tools: input.investigationTools } : {}),
         ...(options.knowledgeSearch ? { knowledgeSearch: options.knowledgeSearch } : {}),
       });
       // The store is the handoff boundary; only persisted, scoped IDs are eligible.
       const stored = await evidence.results();
-      if (input.results.some((result) => !stored.some((saved) => saved.id === result.id))) return failed("unsafe_output");
+      if (input.results.some((result) => !stored.some((saved) => saved.id === result.id))) {
+        return failed("unsafe_output", input.results, {
+          cause: "unsaved_handoff",
+          inputResultIds: input.results.map((result) => result.id),
+          storedResultIds: stored.map((result) => result.id),
+        });
+      }
       const server = await openAnalysisEvidenceMcp(evidence);
       let response: string;
       try {
@@ -72,20 +80,41 @@ export function createCodexAnalysisBriefWriter(options: {
           input: { task: input.task, generatedAt, results: stored.map(resultDescriptor) },
           evidenceSource: { url: server.url, token: server.token, tools: server.tools },
         }), options.timeoutMs ?? 360_000)).finalResponse;
-      } catch {
-        return failed("model_error", await evidence.results());
+      } catch (error) {
+        return failed("model_error", await evidence.results(), {
+          cause: "runtime_error",
+          error: error instanceof Error ? error.message : String(error),
+        });
       } finally { await server.close(); }
 
       const results = await evidence.results();
       const parsed = parseGeneratedBrief(response);
-      if (!parsed) return failed("malformed_output", results);
+      if (!parsed) {
+        return failed("malformed_output", results, {
+          cause: "parse_failure",
+          parseFailure: diagnoseParseFailure(response),
+          responseChars: response.length,
+        });
+      }
       const references = resolveEvidence(parsed.evidence, results, evidence);
       const zones = knownZoneIds(results);
       const zoneRefs = [
         ...parsed.actions.map((action) => action.zoneRef),
         ...parsed.document.sections.flatMap((section) => (section.items ?? []).map((item) => item.zoneRef)),
       ].filter((ref): ref is string => ref !== undefined);
-      if (!references || zoneRefs.some((ref) => !zones.has(ref))) return failed("unsafe_output", results);
+      const unknownZoneRefs = [...new Set(zoneRefs.filter((ref) => !zones.has(ref)))];
+      const evidenceRefsFailed = references === null;
+      if (evidenceRefsFailed || unknownZoneRefs.length > 0) {
+        return failed("unsafe_output", results, {
+          cause: evidenceRefsFailed && unknownZoneRefs.length > 0 ? "evidence_refs_and_unknown_zone_refs"
+            : evidenceRefsFailed ? "evidence_refs_failed"
+              : "unknown_zone_refs",
+          evidenceRefsFailed,
+          unknownZoneRefs,
+          zoneRefs,
+          knownZoneIds: [...zones].sort(),
+        });
+      }
 
       return { results, brief: {
         version: input.brief.version, ...parsed, evidence: references,
@@ -121,7 +150,7 @@ export const analysisWritingPrompt = `你是面向玉米种植户、合作社负
 
 先比较再解释：把同一天的田内差异与同一位置的跨期变化分开；比较实际可用的观测日期、分区规模与强度、不同指标的同向或背离，以及已存在的雷达、天气、地形、土壤或生育期结果。选择对当前决策有用的比较，用连贯段落写出“差异 -> 可能含义 -> 为什么先处理这里”，不必罗列全部指标。一个结果的缺失不妨碍解释其余已有证据。没有现场记录时，仍完成能够由遥感证据支持的分析。
 
-水氮或等效多源结果含 spatialPrioritySummary 时，读取 /spatialPrioritySummary 和 /zones 中各偏弱区的 spatialPriority、radarOverlap、lowlandOverlap。overview 和 document 必须明确说出雷达/低洼地形交集是否改变“先看哪一块”：有正交集的弱区先于无交集弱区；已测侧全为零时说没有改变；不可计算时说明无法据此排序；没有偏弱区时说明没有弱区需要排序。用实际分区和来源日期支持判断，不把交集只写进天气或雷达背景段落，也不把相交解释为积水或缺氮确诊。
+水氮或等效多源结果含 spatialPrioritySummary 时，读取 /spatialPrioritySummary 和 /zones 中各偏弱区的 spatialPriority、radarOverlap、lowlandOverlap。overview 和 document 必须明确说出雷达/低洼地形交集是否改变“先看哪一块”：有正交集的弱区先于无交集弱区；已测侧全为零时说没有改变；不可计算时说明无法据此排序；没有偏弱区时说明没有弱区需要排序。用实际分区和来源日期支持判断，不把交集只写进天气或雷达背景段落，也不把相交解释为积水或缺氮确诊。若成果目录没有 spatialPrioritySummary（例如纯长势监测、尚未跑水氮评估），overview 和 document 仍必须写明：当前没有可用的雷达/低洼弱区交集优先级，无法据此调整先看哪一块；缺测或不存在该字段不等于已证明无异常或无相交。不要编造交集面积或排序变化。zoneRef 只能填写成果 zones/weakZones 中真实存在的分区 ID；没有对应分区时省略 zoneRef，不要发明 ID。
 
 将观测事实、比较发现、原因解释和行动区分清楚。原因有多个可能时，比较各自支持与反证，说明目前哪个更值得排查以及什么观察能够区分它们；不能仅凭光学低值默认先查积水或缺氮。单一指数、单期低值、日期先后或地块均值变化不能确诊原因，也不能证明同一弱区一直在下降。生育期估计须结合其方法与置信度；土壤背景不是田内实测。未运行的工具不是“未发现异常”。
 
@@ -190,6 +219,29 @@ function resolveEvidence(items: GeneratedBrief["evidence"], results: AnalysisRes
     resolved.push({ ...item, sourceDates, ...(knowledgeCitations.length ? { knowledgeCitations } : {}) });
   }
   return resolved;
+}
+
+/** stderr JSON so writer:v6-rerun / container logs capture fallback cause without changing the brief. */
+function logWriterFallback(detail: Record<string, unknown>): void {
+  console.error(JSON.stringify({ event: "analysis_brief_writer_fallback", ...detail }));
+}
+
+function diagnoseParseFailure(value: string): string {
+  let parsed: unknown;
+  try { parsed = JSON.parse(value); }
+  catch { return value.trim().length === 0 ? "empty_response" : "json_parse_error"; }
+  if (!isRecord(parsed)) return "root_not_object";
+  if (!text(parsed.headline)) return "missing_headline";
+  if (!text(parsed.overview)) return "missing_overview";
+  if (!text(parsed.reasoning)) return "missing_reasoning";
+  if (parsed.uncertainty !== null && !text(parsed.uncertainty)) return "invalid_uncertainty";
+  if (typeof parsed.reviewRequired !== "boolean") return "missing_reviewRequired";
+  if (!isRecord(parsed.document)) return "missing_document";
+  if (!text(parsed.document.title) || !text(parsed.document.subtitle)) return "invalid_document_title";
+  if (!Array.isArray(parsed.document.sections) || !parsed.document.sections.length) return "missing_document_sections";
+  if (!Array.isArray(parsed.evidence) || !parsed.evidence.length) return "missing_evidence";
+  if (!Array.isArray(parsed.actions)) return "missing_actions";
+  return "structure_invalid";
 }
 
 function knownZoneIds(results: AnalysisResult<unknown>[]): Set<string> {
