@@ -18,7 +18,7 @@ describe("analysis document writer", () => {
     expect(generated.actions[0]?.label).toBe("比较冠层完整度");
     expect(generated.actions[0]?.decisionEffect).toContain("现场叶色");
     expect(generated.generation).toMatchObject({ mode: "model_generated", fallbackReason: null, modelId: "test-model" });
-    expect(generated.generation.promptVersion).toBe("analysis-brief-writer-v6");
+    expect(generated.generation.promptVersion).toBe("analysis-brief-writer-v7");
     expect(generated.evidence[0]).toMatchObject({
       references: [{ resultId: "optical-1", path: "/current/metrics/ndvi/mean" }],
       sourceDates: [{ source: "sentinel-2", date: "2026-07-31" }],
