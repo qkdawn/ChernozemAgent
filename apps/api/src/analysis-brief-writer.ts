@@ -5,7 +5,7 @@ import { AnalysisEvidence, resultDescriptor, valueAtPointer } from "./analysis-e
 import { openAnalysisEvidenceMcp } from "./analysis-evidence-mcp.js";
 import type { AnalysisResultStore } from "./analysis-store.js";
 
-const PROMPT_VERSION = "analysis-brief-writer-v7";
+const PROMPT_VERSION = "analysis-brief-writer-v8";
 
 type BriefTask = Pick<AnalysisTask, "id" | "fieldId" | "boundaryVersion" | "objective" | "timeRange" | "requestMessage">;
 
@@ -156,7 +156,7 @@ export const analysisWritingPrompt = `你是面向玉米种植户、合作社负
 
 事实使用实际结果中的对象、数字、日期、单位与来源。可以按阅读需要四舍五入、换算比例和形成比较，避免抄录像元坐标或编造方向。定量发现尽量使用工具已计算的变化量，未计算的新空间交集或时序持续性不能靠文字推断。evidence 为主要判断提供 resultId 与字段路径；path 是相对于该结果 result 的 RFC 6901 JSON Pointer，例如 /current/metrics/ndvi/mean，数组用 /zones/0/areaHa。只引用已经通过工具实际读取且支持该判断的非空字段，不引用无关对象凑依据。知识引用使用 /matches/序号/excerpt，不能用知识原文证明该地块发生了某种现象。
 
-时间以 task.timeRange 和观测日期为准；generatedAt 是此次写作日期。历史观测写成“截至某日”，不要把距任务结束日期的天数说成距今天。工具的比较基线若在任务窗口外，应明确其比较角色，不能假称为窗口内观测。只在数据质量或证据缺口确实改变当前选择时保留一条限制说明（写在 overview 或「当前判断」末句其一即可）。不要用通用免责声明、方法审计腔或重复的窗口/覆盖说明占据正文。uncertainty 仅写这条缺口；若已在正文写过则 uncertainty=null。
+时间以 task.timeRange 和观测日期为准；generatedAt 是此次写作日期。历史观测写成“截至某日”，不要把距任务结束日期的天数说成距今天。工具的比较基线若在任务窗口外，应明确其比较角色，不能假称为窗口内观测。只有数据质量或证据缺口确实改变当前选择时才保留限制说明；headline、overview、reasoning、document、actions 和 uncertainty 合计最多一条限制说明，只能写在 overview 或「当前判断」末句其一，不能在其他字段、章节或动作中重复。「时效/窗口结束/写作日≠田况/历史不可回验/无同期作物/不能用后茬或残茬替代」属同一条决策相关限制，只允许 overview 或「当前判断」末句出现一次；「先做什么」与 decisionEffect 只写动作与 A/B，禁止再开同义执行范围限制。B3 的「无法据此调整先看哪一块」及 spatialPrioritySummary 的无弱区/无法排序空序说明不计入限制句配额。不要用通用免责声明、方法审计腔或重复的窗口/覆盖说明占据正文。uncertainty 仅写这条缺口；若已在正文写过则 uncertainty=null。
 
 阶段估计在没有匹配农学知识引用时只作为观测日期的背景，不要推导灌浆期必然影响产量、群体功能或管理效果。若知识检索为无匹配或你未引用任何知识 excerpt：禁止写机理推断（产量影响、群体功能、营养代谢路径、积水/缺氮机制等）。只依据本田观测与比较写出优先区域与核查动作；不要用一般农学常识填补无引用的解释层。凡无知识 excerpt 支撑的机理句一律删除，不限于生育期。指出“需要专业复核”“核对土壤/植株营养/根系”属于诊断路径，不是处方；只有明确要求施肥、灌溉、用药或给出剂量、频次、执行时间时才将 reviewRequired 设为 true。
 
@@ -166,8 +166,8 @@ export const analysisWritingPrompt = `你是面向玉米种植户、合作社负
 - “先做什么”：写第一项现场动作、检查对象和目的；
 - “结果如何改变判断”：把 A/B 两种现场结果分别连接到下一步。
 「先做什么」与第一条 action 必须同指一件可当场完成的核对：在优先弱区与对照区做等长样段（株数、倒伏/裸土、同叶位叶色、同深度干湿）。不得把等待影像、泛化复盘或「有条件再查」写成第一动作。
-「结果如何改变判断」至少给出一对互斥现场结果 A/B，并分别接到下一步判断。每个 action 的 decisionEffect 必填，写成「若 A …；若 B …」；缺 decisionEffect 的动作视为不合格输出。
-开头用明确判断统领全文，后文增加比较与解释，避免将同一面积和日期重复多次。headline、overview 和 reasoning 供摘要复用，document 才是完整正文。overview 必须能脱离全文回答“哪里、什么时候、先做什么”；reasoning 用 2—4 句说明证据关系，不要写成审计日志。面向种植户用中文和面积称呼区域，例如“约5公顷的主要偏弱区”；机器分区 ID 留在 zoneRef，正文不堆砌 ID 或地块 UUID。每个 action 要写明对象/区域、目的、实际操作和结果如何改变判断；decisionEffect 必填，写成「若 A …；若 B …」，不可省略。只有确实没有可执行动作时 actions 才能为空；“等待下一期影像”只能是必要的验证环节，不能代替对已有证据的分析。新增核查建议可以来自你的分析，不必沿用工具的 nextActions；数据不足以区分原因时直说缺的是哪一条证据，不生成一整章泛化提醒。
+「结果如何改变判断」至少给出一对互斥现场结果 A/B，并分别接到下一步判断；该章节只写现场结果及其对应的下一步判断，不写限制说明。每个 action 的 decisionEffect 必填，写成「若 A …；若 B …」；只写两种现场结果各自对应的下一步动作或判断，不夹带历史观测无法验证、缺测、数据质量或其他限制说明；缺 decisionEffect 的动作视为不合格输出。
+开头用明确判断统领全文，后文增加比较与解释，避免将同一面积和日期重复多次。headline、overview 和 reasoning 供摘要复用，document 才是完整正文。overview 必须能脱离全文回答“哪里、什么时候、先做什么”；reasoning 用 2—4 句说明证据关系，不要写成审计日志。面向种植户用中文和面积称呼区域，例如“约5公顷的主要偏弱区”；机器分区 ID 留在 zoneRef，正文不堆砌 ID 或地块 UUID。每个 action 要写明对象/区域、目的、实际操作和结果如何改变判断；decisionEffect 必填，写成「若 A …；若 B …」，不可省略。先做什么和 decisionEffect 只写可执行核查动作及互斥 A/B 结果分支，不重复历史观测无法验证、缺测、数据质量或其他限制说明。只有确实没有可执行动作时 actions 才能为空；“等待下一期影像”只能是必要的验证环节，不能代替对已有证据的分析。新增核查建议可以来自你的分析，不必沿用工具的 nextActions；数据不足以区分原因时直说缺的是哪一条证据，不生成一整章泛化提醒。
 
 本任务默认提供分析和低风险核查，不自动发布施肥、灌溉、用药的执行处方。若正文或 actions 含有此类执行建议，必须 reviewRequired=true，保留为专业复核草稿；不能把推测写成确诊或承诺产量收益。普通分析 reviewRequired=false。已有专业复核状态不由模型解除。
 

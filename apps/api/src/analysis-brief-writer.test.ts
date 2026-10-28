@@ -18,7 +18,7 @@ describe("analysis document writer", () => {
     expect(generated.actions[0]?.label).toBe("比较冠层完整度");
     expect(generated.actions[0]?.decisionEffect).toContain("现场叶色");
     expect(generated.generation).toMatchObject({ mode: "model_generated", fallbackReason: null, modelId: "test-model" });
-    expect(generated.generation.promptVersion).toBe("analysis-brief-writer-v7");
+    expect(generated.generation.promptVersion).toBe("analysis-brief-writer-v8");
     expect(generated.evidence[0]).toMatchObject({
       references: [{ resultId: "optical-1", path: "/current/metrics/ndvi/mean" }],
       sourceDates: [{ source: "sentinel-2", date: "2026-07-31" }],
@@ -31,6 +31,8 @@ describe("analysis document writer", () => {
     expect(JSON.stringify(request.input)).not.toContain("这是固定底稿");
     expect(JSON.stringify(request.input)).not.toContain("无条件先看低洼处");
     expect(request.systemPrompt).toContain("没有现场记录时");
+    expect(request.systemPrompt).toContain("时效/窗口结束/写作日≠田况/历史不可回验/无同期作物/不能用后茬或残茬替代");
+    expect(request.systemPrompt).toContain("不计入限制句配额");
     expect(request.systemPrompt).toContain("距任务结束日期");
     expect(request.systemPrompt).toContain("不能靠文字推断");
     expect(request.systemPrompt).toContain("决策框架");
