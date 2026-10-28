@@ -164,7 +164,7 @@ export interface SpatialPriority {
 }
 
 /** Only measured positive footprint overlap can promote a below-average optical zone. */
-function spatialPriority(radar: SpatialOverlap, lowland: SpatialOverlap): SpatialPriority {
+export function deriveSpatialPriority(radar: SpatialOverlap, lowland: SpatialOverlap): SpatialPriority {
   const measuredRadar = radar.status === "computed" && radar.overlapAreaHa !== null && Number.isFinite(radar.overlapAreaHa) && radar.overlapAreaHa >= 0;
   const measuredLowland = lowland.status === "computed" && lowland.overlapAreaHa !== null && Number.isFinite(lowland.overlapAreaHa) && lowland.overlapAreaHa >= 0;
   if (!measuredRadar && !measuredLowland) return { status: "unavailable", changesPriority: null, preferredBecause: null, note: "雷达与低洼交集均不可计算，无法据此调整弱区核查顺序。" };
@@ -684,7 +684,7 @@ export class MultiSourceAnalysisService {
         id: `water-nitrogen-${zone.id}`, opticalZoneId: zone.id,
         meanNdvi: finiteNumber(zone.meanNdvi), ndviDeviation: finiteNumber(zone.deviation), metricDeviations: zone.metricDeviations ?? null,
         areaHa, areaFraction: areaHa !== null && field.areaHa > 0 ? areaHa / field.areaHa : null,
-        radarOverlap, lowlandOverlap, spatialPriority: spatialPriority(radarOverlap, lowlandOverlap),
+        radarOverlap, lowlandOverlap, spatialPriority: deriveSpatialPriority(radarOverlap, lowlandOverlap),
         inspectionRefs: locations.filter((location) => location.inside === true).map(({ inspection: { taskId, findingId } }) => ({ taskId, findingId })),
         inspectionLocationStatus: !locations.length ? "not_evaluated" : locations.some((location) => location.inside === null) ? "invalid_input" : "computed",
         zone: zone.zone,
