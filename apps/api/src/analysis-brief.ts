@@ -2,6 +2,7 @@ import type { AnalysisBrief, AnalysisBriefAction, AnalysisObjective, AnalysisRes
 
 import type { GrowthAssessmentPayload } from "./analysis-tools.js";
 import type { FrostRiskPayload, WaterloggingAssessmentPayload, WaterNitrogenEvidencePayload } from "./multi-source-analysis.js";
+import { summarizeSpatialPriorityForBrief } from "./spatial-priority-presentation.js";
 
 const BRIEF_VERSION = "analysis-brief-v2" as const;
 
@@ -99,14 +100,21 @@ function waterNitrogenBrief(assessment: AnalysisResult<WaterNitrogenEvidencePayl
   const area = result.attentionAreaHa === null ? "面积未计算" : `约 ${result.attentionAreaHa.toFixed(2)} 公顷${result.attentionAreaFraction === null ? "" : `（占 ${(result.attentionAreaFraction * 100).toFixed(1)}%）`}`;
   const coverage = result.validCoverageFraction === null ? "最新影像的有效覆盖尚未记录" : `最新影像有效覆盖 ${(result.validCoverageFraction * 100).toFixed(1)}%`;
   const stage = result.cropStage ? `，估计处于${result.cropStage.label}` : "";
+  const spatialPriority = summarizeSpatialPriorityForBrief(result);
   const headline = `${result.referenceDate} ${visible ? `田内相对低值区${area}` : "可用范围内未检出明显田内差异"}`;
-  const overview = visible ? `${result.referenceDate}${stage}，${area}的植被表现低于同日其他区域。` : `${result.referenceDate}${stage}，可用影像范围内的植被表现较均匀。`;
+  const overview = `${visible ? `${result.referenceDate}${stage}，${area}的植被表现低于同日其他区域。` : `${result.referenceDate}${stage}，可用影像范围内的植被表现较均匀。`}${spatialPriority.overviewClause}`;
   const change = result.latestChange ? `与 ${result.latestChange.fromDate} 相比，地块平均 NDVI 变化 ${result.latestChange.ndviDelta >= 0 ? "+" : ""}${result.latestChange.ndviDelta.toFixed(3)}。` : "尚无可比的跨期变化统计。";
-  const measuredOverlaps = result.zones.flatMap((zone) => zone.radarOverlap?.status === "computed" && zone.radarOverlap.overlapAreaHa !== null
-    ? [`${zone.opticalZoneId} 与雷达变化区的几何交集 ${zone.radarOverlap.overlapAreaHa.toFixed(2)} 公顷${zone.radarOverlap.overlapFraction === null ? "" : `（占分区几何面积 ${(zone.radarOverlap.overlapFraction * 100).toFixed(1)}%）`}`] : []);
-  const reasoning = `本次纳入 ${result.observationCount} 个有效观测日期，${coverage}。${change}${measuredOverlaps.length ? `${measuredOverlaps.join("；")}。` : ""}`;
+  const reasoning = `本次纳入 ${result.observationCount} 个有效观测日期，${coverage}。${change}${spatialPriority.reasoningClause}`;
   const uncertainty = result.observationStatus === "stale" ? `影像距任务结束日期 ${result.observationAgeDays ?? "未知"} 天，观测时间为 ${result.referenceDate}。` : null;
-  return brief({ assessment, headline, overview, reasoning, uncertainty, actions: [] });
+  const actions: AnalysisBriefAction[] = spatialPriority.firstLookZoneId ? [{
+    label: "先核查排序靠前的相对弱区",
+    purpose: "按雷达/低洼空间交集确定现场查看顺序，不据此判断异常原因",
+    where: result.zones.find((zone) => zone.id === spatialPriority.firstLookZoneId)?.opticalZoneId ?? null,
+    timing: "本轮田间核查时",
+    checklist: ["对照地图确认分区位置", "记录作物长势与现场情况"],
+    zoneRef: spatialPriority.firstLookZoneId,
+  }] : [];
+  return brief({ assessment, headline, overview, reasoning, uncertainty, actions });
 }
 
 function waterloggingBrief(assessment: AnalysisResult<WaterloggingAssessmentPayload>): AnalysisBrief {

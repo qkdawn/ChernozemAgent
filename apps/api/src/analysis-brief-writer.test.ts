@@ -40,6 +40,8 @@ describe("analysis document writer", () => {
     expect(request.systemPrompt).toContain("overview 和 document 必须明确说出雷达/低洼地形交集是否改变");
     expect(request.systemPrompt).toContain("若成果目录没有 spatialPrioritySummary");
     expect(request.systemPrompt).toContain("无法据此调整先看哪一块");
+    expect(request.systemPrompt).toContain("禁止写成「无水分问题」");
+    expect(request.systemPrompt).toContain("禁止写成「无水分问题」");
     expect(request.systemPrompt).toContain("zoneRef 只能填写成果 zones/weakZones 中真实存在的分区 ID");
   });
 

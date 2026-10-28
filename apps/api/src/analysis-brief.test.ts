@@ -115,6 +115,36 @@ describe("buildAnalysisBrief", () => {
     expect(brief?.overview).not.toMatch(/充足|正常供水|无需施肥/);
   });
 
+  it("uses measured zero overlap only to describe unchanged check order", () => {
+    const brief = buildAnalysisBrief("water_nitrogen_diagnosis", [assessment("assess_water_nitrogen_evidence", {
+      referenceDate: "2026-07-31", observationStatus: "current", observationCount: 2, validCoverageFraction: 0.91,
+      evidenceLevel: "multi_source", sourceAlignment: [], attentionAreaHa: 1, attentionAreaFraction: 0.1,
+      observation: { variationStatus: "visible" },
+      spatialPrioritySummary: { changesAnyPriority: false, orderedZoneIds: ["zone-1"] },
+      zones: [{ id: "zone-1", opticalZoneId: "weak-a", radarOverlap: { status: "computed", overlapAreaHa: 0, overlapFraction: 0 },
+        lowlandOverlap: { status: "unavailable", overlapAreaHa: null, overlapFraction: null },
+        spatialPriority: { status: "computed", changesPriority: false, preferredBecause: "none", note: "多源空间证据未改变先看哪块弱区" } }],
+    })]);
+    const text = `${brief?.overview} ${brief?.reasoning}`;
+    expect(text).toContain("未改变先看");
+    expect(text).not.toMatch(/无水分问题|无水分|证明无积水|排除水分/);
+  });
+
+  it("surfaces the first ordered weak zone when positive overlap changes priority", () => {
+    const brief = buildAnalysisBrief("water_nitrogen_diagnosis", [assessment("assess_water_nitrogen_evidence", {
+      referenceDate: "2026-07-31", observationStatus: "current", observationCount: 2, validCoverageFraction: 0.91,
+      evidenceLevel: "multi_source", sourceAlignment: [], attentionAreaHa: 1, attentionAreaFraction: 0.1,
+      observation: { variationStatus: "visible" },
+      spatialPrioritySummary: { changesAnyPriority: true, orderedZoneIds: ["zone-1"] },
+      zones: [{ id: "zone-1", opticalZoneId: "weak-a", radarOverlap: { status: "computed", overlapAreaHa: 0.2, overlapFraction: 0.1 },
+        lowlandOverlap: { status: "computed", overlapAreaHa: 0, overlapFraction: 0 },
+        spatialPriority: { status: "computed", changesPriority: true, preferredBecause: "radar_overlap", note: "与雷达变化区相交" } }],
+    })]);
+    expect(brief?.overview).toContain("先查看 weak-a");
+    expect(brief?.reasoning).toContain("0.20 公顷有交");
+    expect(brief?.actions[0]).toMatchObject({ zoneRef: "zone-1", where: "weak-a" });
+  });
+
   it("does not silently describe missing water-nitrogen area as zero hectares", () => {
     const result = assessment("assess_water_nitrogen_evidence", {
       referenceDate: "2026-07-31", observationStatus: "current", observationCount: 1, validCoverageFraction: 0.91,
