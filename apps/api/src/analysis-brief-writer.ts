@@ -5,7 +5,7 @@ import { AnalysisEvidence, resultDescriptor, valueAtPointer } from "./analysis-e
 import { openAnalysisEvidenceMcp } from "./analysis-evidence-mcp.js";
 import type { AnalysisResultStore } from "./analysis-store.js";
 
-const PROMPT_VERSION = "analysis-brief-writer-v6";
+const PROMPT_VERSION = "analysis-brief-writer-v7";
 
 type BriefTask = Pick<AnalysisTask, "id" | "fieldId" | "boundaryVersion" | "objective" | "timeRange" | "requestMessage">;
 
@@ -156,16 +156,18 @@ export const analysisWritingPrompt = `你是面向玉米种植户、合作社负
 
 事实使用实际结果中的对象、数字、日期、单位与来源。可以按阅读需要四舍五入、换算比例和形成比较，避免抄录像元坐标或编造方向。定量发现尽量使用工具已计算的变化量，未计算的新空间交集或时序持续性不能靠文字推断。evidence 为主要判断提供 resultId 与字段路径；path 是相对于该结果 result 的 RFC 6901 JSON Pointer，例如 /current/metrics/ndvi/mean，数组用 /zones/0/areaHa。只引用已经通过工具实际读取且支持该判断的非空字段，不引用无关对象凑依据。知识引用使用 /matches/序号/excerpt，不能用知识原文证明该地块发生了某种现象。
 
-时间以 task.timeRange 和观测日期为准；generatedAt 是此次写作日期。历史观测写成“截至某日”，不要把距任务结束日期的天数说成距今天。工具的比较基线若在任务窗口外，应明确其比较角色，不能假称为窗口内观测。只在数据质量确实改变结论范围时，局部交代它的影响；同一限制说明一次，不要用通用免责声明占据正文。
+时间以 task.timeRange 和观测日期为准；generatedAt 是此次写作日期。历史观测写成“截至某日”，不要把距任务结束日期的天数说成距今天。工具的比较基线若在任务窗口外，应明确其比较角色，不能假称为窗口内观测。只在数据质量或证据缺口确实改变当前选择时保留一条限制说明（写在 overview 或「当前判断」末句其一即可）。不要用通用免责声明、方法审计腔或重复的窗口/覆盖说明占据正文。uncertainty 仅写这条缺口；若已在正文写过则 uncertainty=null。
 
-阶段估计在没有匹配农学知识引用时只作为观测日期的背景，不要推导灌浆期必然影响产量、群体功能或管理效果。指出“需要专业复核”“核对土壤/植株营养/根系”属于诊断路径，不是处方；只有明确要求施肥、灌溉、用药或给出剂量、频次、执行时间时才将 reviewRequired 设为 true。
+阶段估计在没有匹配农学知识引用时只作为观测日期的背景，不要推导灌浆期必然影响产量、群体功能或管理效果。若知识检索为无匹配或你未引用任何知识 excerpt：禁止写机理推断（产量影响、群体功能、营养代谢路径、积水/缺氮机制等）。只依据本田观测与比较写出优先区域与核查动作；不要用一般农学常识填补无引用的解释层。凡无知识 excerpt 支撑的机理句一律删除，不限于生育期。指出“需要专业复核”“核对土壤/植株营养/根系”属于诊断路径，不是处方；只有明确要求施肥、灌溉、用药或给出剂量、频次、执行时间时才将 reviewRequired 设为 true。
 
 文档必须按决策顺序组织，默认不超过 4 个章节：
 - “当前判断”：一句话回答现在是什么、最先关注哪里；
 - “区域差异与依据”：只写改变判断的比较关系；
 - “先做什么”：写第一项现场动作、检查对象和目的；
 - “结果如何改变判断”：把 A/B 两种现场结果分别连接到下一步。
-开头用明确判断统领全文，后文增加比较与解释，避免将同一面积和日期重复多次。headline、overview 和 reasoning 供摘要复用，document 才是完整正文。overview 必须能脱离全文回答“哪里、什么时候、先做什么”；reasoning 用 2—4 句说明证据关系，不要写成审计日志。面向种植户用中文和面积称呼区域，例如“约5公顷的主要偏弱区”；机器分区 ID 留在 zoneRef，正文不堆砌 ID 或地块 UUID。每个 action 要写明对象/区域、目的、实际操作和结果如何改变判断；用 decisionEffect 字段表达分支。只有确实没有可执行动作时 actions 才能为空；“等待下一期影像”只能是必要的验证环节，不能代替对已有证据的分析。新增核查建议可以来自你的分析，不必沿用工具的 nextActions；数据不足以区分原因时直说缺的是哪一条证据，不生成一整章泛化提醒。
+「先做什么」与第一条 action 必须同指一件可当场完成的核对：在优先弱区与对照区做等长样段（株数、倒伏/裸土、同叶位叶色、同深度干湿）。不得把等待影像、泛化复盘或「有条件再查」写成第一动作。
+「结果如何改变判断」至少给出一对互斥现场结果 A/B，并分别接到下一步判断。每个 action 的 decisionEffect 必填，写成「若 A …；若 B …」；缺 decisionEffect 的动作视为不合格输出。
+开头用明确判断统领全文，后文增加比较与解释，避免将同一面积和日期重复多次。headline、overview 和 reasoning 供摘要复用，document 才是完整正文。overview 必须能脱离全文回答“哪里、什么时候、先做什么”；reasoning 用 2—4 句说明证据关系，不要写成审计日志。面向种植户用中文和面积称呼区域，例如“约5公顷的主要偏弱区”；机器分区 ID 留在 zoneRef，正文不堆砌 ID 或地块 UUID。每个 action 要写明对象/区域、目的、实际操作和结果如何改变判断；decisionEffect 必填，写成「若 A …；若 B …」，不可省略。只有确实没有可执行动作时 actions 才能为空；“等待下一期影像”只能是必要的验证环节，不能代替对已有证据的分析。新增核查建议可以来自你的分析，不必沿用工具的 nextActions；数据不足以区分原因时直说缺的是哪一条证据，不生成一整章泛化提醒。
 
 本任务默认提供分析和低风险核查，不自动发布施肥、灌溉、用药的执行处方。若正文或 actions 含有此类执行建议，必须 reviewRequired=true，保留为专业复核草稿；不能把推测写成确诊或承诺产量收益。普通分析 reviewRequired=false。已有专业复核状态不由模型解除。
 
@@ -177,10 +179,10 @@ export const analysisWritingPrompt = `你是面向玉米种植户、合作社负
   "uncertainty": null,
   "document": {"title": "针对本任务的文档标题", "subtitle": "分析对象与实际观测时段", "sections": [{"id": "唯一章节标识", "title": "自然的章节标题", "paragraphs": ["连贯的分析段落"], "items": [{"label": "可选具名对象", "text": "对象的具体发现", "zoneRef": "可选，必须是实际分区 ID"}]}]},
   "evidence": [{"statement": "具体判断", "references": [{"resultId": "输入结果 ID", "path": "/实际字段路径"}]}],
-  "actions": [{"label": "具体动作", "purpose": "解决的具体问题", "decisionEffect": "如果看到 A，判断转向什么；如果看到 B，判断转向什么", "where": null, "timing": null, "checklist": ["实际操作"], "zoneRef": "可选，实际分区 ID"}],
+  "actions": [{"label": "具体动作", "purpose": "解决的具体问题", "decisionEffect": "若 A …；若 B …（必填）", "where": null, "timing": null, "checklist": ["实际操作"], "zoneRef": "可选，实际分区 ID"}],
   "reviewRequired": false
 }
-uncertainty 是影响当前判断的具体缺口，无则 null；已经在 overview 或 document 说明过的限制不要再次完整复述。items、zoneRef、purpose、decisionEffect 可以省略；没有合理动作时 actions 可以为空。evidence 至少一项。段落为纯文本，由界面排版，勿输出 HTML 或 Markdown 代码围栏。`;
+uncertainty 是影响当前判断的具体缺口，无则 null；已经在 overview 或 document 说明过的限制不要再次完整复述。items、zoneRef、purpose 可以省略；有 action 时 decisionEffect 必填（「若 A …；若 B …」）；没有合理动作时 actions 可以为空。evidence 至少一项。段落为纯文本，由界面排版，勿输出 HTML 或 Markdown 代码围栏。`;
 
 function validResultScope(input: AnalysisBriefWritingInput): boolean {
   return Number.isInteger(input.task.boundaryVersion) && input.task.boundaryVersion! > 0 && input.results.length > 0 && input.results.every((result) => result.taskId === input.task.id
