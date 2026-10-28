@@ -109,6 +109,7 @@ function waterNitrogenBrief(assessment: AnalysisResult<WaterNitrogenEvidencePayl
   const actions: AnalysisBriefAction[] = spatialPriority.firstLookZoneId ? [{
     label: "先核查排序靠前的相对弱区",
     purpose: "按雷达/低洼空间交集确定现场查看顺序，不据此判断异常原因",
+    decisionEffect: "若现场与地图弱区一致，保持该优先顺序；若不符，改回按光学弱区原序核查，不据此认定水分问题",
     where: result.zones.find((zone) => zone.id === spatialPriority.firstLookZoneId)?.opticalZoneId ?? null,
     timing: "本轮田间核查时",
     checklist: ["对照地图确认分区位置", "记录作物长势与现场情况"],
