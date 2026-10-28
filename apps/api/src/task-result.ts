@@ -73,6 +73,7 @@ function publicResult(task: AnalysisTask): NonNullable<ConversationTaskResult["t
     ? task.brief.actions
     : task.nextActions.map((action) => ({
       label: action.label,
+      decisionEffect: "若现场核查与当前判断一致，按该区域优先级安排后续；若不一致，补充记录并重新判断原因。",
       where: null,
       timing: null,
       checklist: [],
