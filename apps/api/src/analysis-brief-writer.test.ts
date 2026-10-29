@@ -142,6 +142,14 @@ describe("analysis document writer", () => {
     expect(generated.generation).toMatchObject({ mode: "deterministic", fallbackReason: "malformed_output" });
   });
 
+  it.each([undefined, "", "   "])("rejects missing or blank decisionEffect", async (decisionEffect) => {
+    const output = document();
+    if (decisionEffect === undefined) delete output.actions[0]!.decisionEffect;
+    else output.actions[0]!.decisionEffect = decisionEffect;
+    const { brief } = await createCodexAnalysisBriefWriter(runtime(JSON.stringify(output))).write(writingInput());
+    expect(brief.generation).toMatchObject({ mode: "deterministic", fallbackReason: "malformed_output" });
+  });
+
   it("returns computed results on model error or timeout", async () => {
     const failed = runtime("");
     failed.runtime.runStructured = async () => { throw new Error("offline"); };

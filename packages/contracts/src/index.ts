@@ -139,7 +139,7 @@ export interface AnalysisBriefAction {
   /** The unresolved question this action is intended to answer. */
   purpose?: string;
   /** How the observation changes the next diagnosis or action. */
-  decisionEffect?: string;
+  decisionEffect: string;
   where: string | null;
   timing: string | null;
   checklist: string[];

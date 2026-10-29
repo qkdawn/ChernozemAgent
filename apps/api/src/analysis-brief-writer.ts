@@ -243,6 +243,7 @@ function diagnoseParseFailure(value: string): string {
   if (!Array.isArray(parsed.document.sections) || !parsed.document.sections.length) return "missing_document_sections";
   if (!Array.isArray(parsed.evidence) || !parsed.evidence.length) return "missing_evidence";
   if (!Array.isArray(parsed.actions)) return "missing_actions";
+  if (parsed.actions.some((action: unknown) => isRecord(action) && !text(action.decisionEffect))) return "missing_decisionEffect";
   return "structure_invalid";
 }
 
@@ -295,7 +296,7 @@ function parseGeneratedBrief(value: string): GeneratedBrief | null {
     && text(item.statement) && Array.isArray(item.references) && item.references.length > 0
     && item.references.every((ref: unknown) => isRecord(ref) && text(ref.resultId) && text(ref.path)))) return null;
   if (!Array.isArray(parsed.actions) || !parsed.actions.every((action: unknown) => isRecord(action)
-    && text(action.label) && optionalText(action.purpose) && optionalText(action.decisionEffect)
+    && text(action.label) && optionalText(action.purpose) && text(action.decisionEffect)
     && (action.where === undefined || action.where === null || text(action.where))
     && (action.timing === undefined || action.timing === null || text(action.timing))
     && Array.isArray(action.checklist) && action.checklist.every(text)

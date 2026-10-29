@@ -192,11 +192,12 @@ function brief(options: {
 function waterloggingActions(assessment: AnalysisResult<WaterloggingAssessmentPayload>, result: WaterloggingAssessmentPayload): AnalysisBriefAction[] {
   return assessment.nextActions.map((action) => {
     if (action.code === "collect_weather") {
-      return { label: action.label, purpose: "判断雷达变化是否与同一降雨事件对应", where: null, timing: "重新判定积水前", checklist: ["覆盖雷达前后时相", "核对连续降雨量和事件日期"] };
+      return { label: action.label, purpose: "判断雷达变化是否与同一降雨事件对应", decisionEffect: "若降雨时段与雷达变化吻合，优先核查积水；若不吻合，转查其他地表变化原因。", where: null, timing: "重新判定积水前", checklist: ["覆盖雷达前后时相", "核对连续降雨量和事件日期"] };
     }
     return {
       label: action.label,
       purpose: result.status === "suspected" ? "确认疑似积水区是否存在明水、受淹或排水不畅" : "判断雷达变化是否具有现场积水对应物",
+      decisionEffect: "若现场有明水或排水不畅，优先按积水区处置；若无明水且排水正常，转查作物或地表变化。",
       where: result.zones.length
         ? result.zones.some((zone) => zone.priority === "high") ? "优先检查低洼且雷达变化明显的区域" : "优先检查雷达变化明显的区域"
         : "地块排水口和常见低洼处",
@@ -211,11 +212,12 @@ function frostActions(assessment: AnalysisResult<FrostRiskPayload>, result: Fros
   return assessment.nextActions.map((action) => {
     const timing = result.forecastWindow.start ? `${displayMoment(result.forecastWindow.start, "低温过程")}前完成` : "低温过程开始前";
     if (action.code === "add_planting_date" || action.code === "fix_planting_date") {
-      return { label: action.label, purpose: "补齐霜冻风险等级所需的生育期依据", where: null, timing, checklist: ["核对本季播种日期", "确认当前实际生育期"] };
+      return { label: action.label, purpose: "补齐霜冻风险等级所需的生育期依据", decisionEffect: "若播种日期与生育期记录一致，保留当前风险等级；若不一致，按修正后的生育期重新评估。", where: null, timing, checklist: ["核对本季播种日期", "确认当前实际生育期"] };
     }
     return {
       label: action.label,
       purpose: "确认低温预报对应的田间敏感位置和防护关注点",
+      decisionEffect: "若低洼处出现低温或冻害迹象，优先列为防护区；若未出现，转查其他暴露区域。",
       where: result.zones.length ? "地图标出的低洼关注区" : "当前生育期敏感区域",
       timing,
       checklist: ["田间最低温", "冷空气滞留位置", "叶片冻害迹象", "防护措施准备情况"],
