@@ -29,6 +29,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { agentToolLabel, agentToolStatusLabel } from "./agent-run-presentation.js";
 import { archiveField, createDataAcquisition, createField, createNitrogenPrescription, createTask, fetchAcquisition, fetchAcquisitionHistory, fetchAgentRun, fetchDataMatches, fetchFieldConversation, fetchFieldHistory, fetchFieldVisualizations, fetchFields, fetchLatestAcquisition, fetchNitrogenPrescriptionContext, fetchNitrogenPrescriptions, fetchScoutingNotes, fetchTask, fetchTaskAnalysis, fetchTaskConversation, fetchTasks, importFields, nitrogenPrescriptionExportUrl, planAgentAnalysis, saveFieldInspection, saveScoutingNote, sendFieldConversationMessage, sendTaskConversationMessage, updateField } from "./api.js";
 import { acquisitionProgressSummary, acquisitionReadyForRequest, acquisitionRequestForField } from "./data-acquisition-presentation.js";
+import { analysisBriefVisibleSections } from "./analysis-brief-presentation.js";
 import { mapFindingsForLayer } from "./map-findings.js";
 import { MapCanvas, type MapVisualizationLayer } from "./MapCanvas.js";
 import { getWaterNitrogenObservation, waterNitrogenObservationStatus, type WaterNitrogenObservationViewModel } from "./water-nitrogen-presentation.js";
@@ -1717,19 +1718,20 @@ function TaskResult({ surface, field, task, acquisition, agentRun, analysisResul
 
 function AnalysisBriefView({ brief }: { brief: AnalysisBrief }) {
   const document = brief.document;
+  const sections = analysisBriefVisibleSections(brief);
   return <section className="result-decision-brief" aria-label="农情解读">
     {brief.generation.mode === "deterministic" ? <p className="brief-boundary" role="status">AI 解读未生成，当前展示计算摘要。</p> : null}
     {brief.reviewRequired ? <p className="brief-boundary" role="status">分析草稿待专业复核，处方性建议尚未发布。</p> : null}
-    <div className="brief-conclusion">
+    {sections.showOverview ? <div className="brief-conclusion">
       <span>{brief.generation.mode === "deterministic" ? "观测结果" : "当前判断"}</span>
       <p>{brief.overview}</p>
-    </div>
-    <div className="brief-reasoning">
+    </div> : null}
+    {sections.showReasoning ? <div className="brief-reasoning">
       <span>{brief.generation.mode === "deterministic" ? "变化与分区统计" : "为什么这样判断"}</span>
       <p>{brief.reasoning}</p>
-    </div>
+    </div> : null}
     {brief.uncertainty ? <div className="brief-boundary"><span>数据时间与范围</span><p>{brief.uncertainty}</p></div> : null}
-    {brief.actions.length ? <div className="brief-actions">
+    {sections.showActions ? <div className="brief-actions">
       <span>现在先做</span>
       {brief.actions.map((action, index) => {
         const context = [action.timing, action.where].filter((value): value is string => Boolean(value)).join(" · ");
@@ -1745,7 +1747,7 @@ function AnalysisBriefView({ brief }: { brief: AnalysisBrief }) {
         </div>;
       })}
     </div> : null}
-    {document ? <div className="brief-document">
+    {sections.showDocument && document ? <div className="brief-document">
       <header className="brief-document-head">
         <div><span>{brief.generation.mode === "model_generated" ? "AI 农情分析" : "任务文档"}</span><h4>{document.title}</h4></div>
         <small>{document.subtitle}</small>
@@ -1758,7 +1760,7 @@ function AnalysisBriefView({ brief }: { brief: AnalysisBrief }) {
         </div>)}</div> : null}
       </section>)}
     </div> : null}
-    {brief.evidence.length ? <details className="brief-evidence">
+    {sections.showEvidence ? <details className="brief-evidence">
       <summary><span>证据依据</span><b>{brief.evidence.length} 条</b></summary>
       <ol>{brief.evidence.map((item, index) => <li key={`${item.statement}-${index}`}>
         <p>{item.statement}</p>

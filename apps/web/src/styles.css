@@ -1302,13 +1302,6 @@ button:disabled { cursor: not-allowed; }
 .workflow-result-content > .result-hero.is-partial { border-bottom-color: #eadfbd; background: #fff; }
 .workflow-result-content > .result-hero h3 { max-width: 24ch; color: #17231b; font-size: 20px; line-height: 1.42; }
 .workflow-result-content > .result-hero p { max-width: none; margin-top: 7px; color: #68756d; font-size: 12px; }
-.result-decision-brief { display: grid; gap: 9px; padding: 16px 20px 18px; border-bottom: 1px solid #e3e9e4; }
-.result-decision-brief > p { margin: 0; color: #3f4d44; font-size: 12px; line-height: 1.72; }
-.brief-boundary:not(p), .brief-action { display: grid; grid-template-columns: 48px minmax(0,1fr); gap: 4px 10px; align-items: baseline; padding-top: 9px; border-top: 1px solid #edf0ed; }
-.brief-boundary > span, .brief-action > span { grid-row: 1 / span 3; color: #7d8981; font-size: 10px; font-weight: 750; }
-.brief-boundary > p, .brief-action > p { margin: 0; color: #68746c; font-size: 11px; line-height: 1.58; }
-.brief-action > strong { color: #26362c; font-size: 12px; line-height: 1.45; }
-.brief-action > small { color: #78847c; font-size: 10px; line-height: 1.45; }
 .workflow-result .result-observation, .workflow-result .result-band { border-bottom-color: #e3e9e4; }
 .workflow-result .result-band > header { min-height: 40px; padding: 0 20px; }
 .workflow-result .result-band h4 { color: #35433a; font-size: 12px; }
