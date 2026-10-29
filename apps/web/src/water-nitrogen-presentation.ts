@@ -1,5 +1,8 @@
 import { WATER_NITROGEN_METHOD_VERSION, type AnalysisResult, type TaskStatus } from "@chernozem/contracts";
 
+export interface SpatialOverlapViewModel { status: string; overlapAreaHa: number | null; overlapFraction: number | null }
+export interface SpatialPriorityViewModel { status: string; changesPriority: boolean | null; preferredBecause: string | null; note: string }
+
 export interface WaterNitrogenObservationViewModel {
   methodVersion: string;
   assessment: "variation_visible" | "uniform";
@@ -14,12 +17,15 @@ export interface WaterNitrogenObservationViewModel {
   observationStatus: "current" | "stale";
   observation: { variationStatus: "visible" | "uniform" };
   evidenceLevel: "optical_only" | "multi_source" | "field_comparison";
+  spatialPrioritySummary?: { changesAnyPriority: boolean | null; orderedZoneIds: string[] };
   zones: Array<{
     id: string;
     opticalZoneId: string;
     meanNdvi: number | null;
     ndviDeviation: number | null;
-    radarOverlap: { status: string; overlapAreaHa: number | null; overlapFraction: number | null };
+    radarOverlap: SpatialOverlapViewModel;
+    lowlandOverlap: SpatialOverlapViewModel;
+    spatialPriority: SpatialPriorityViewModel;
   }>;
 }
 

@@ -2022,10 +2022,15 @@ function WaterNitrogenObservationView({ observation, targets, inspections }: { o
 
 function waterNitrogenZonePresentation(observation: WaterNitrogenObservationViewModel, finding: AnalysisFinding, index: number): { title: string; summary: string } {
   const zone = observation.zones.find((candidate) => candidate.id === finding.id || candidate.opticalZoneId === finding.id);
-  const overlap = zone?.radarOverlap;
+  const priority = zone?.spatialPriority;
+  const overlapLine = !priority || priority.status === "unavailable"
+    ? "多源交集不可计算，未据此排序"
+    : priority.changesPriority
+      ? `${priority.preferredBecause === "radar_overlap" ? "雷达有交" : priority.preferredBecause === "lowland_overlap" ? "低洼有交" : "雷达/低洼有交"} · ${priority.note}`
+      : "已测零交，未改变先看顺序";
   return {
     title: `田内相对低值区 ${index + 1}`,
-    summary: `${formatShortDate(observation.referenceDate)}${zone?.meanNdvi == null ? "" : ` · NDVI ${zone.meanNdvi.toFixed(3)}`}${overlap?.status === "computed" && overlap.overlapAreaHa !== null ? ` · 与雷达变化区几何交集 ${overlap.overlapAreaHa.toFixed(2)} ha` : ""}`,
+    summary: `${formatShortDate(observation.referenceDate)}${zone?.meanNdvi == null ? "" : ` · NDVI ${zone.meanNdvi.toFixed(3)}`} · ${overlapLine}`,
   };
 }
 

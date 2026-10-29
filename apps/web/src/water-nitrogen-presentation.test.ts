@@ -18,6 +18,21 @@ describe("water nitrogen observation presentation", () => {
     expect(getWaterNitrogenObservation([result(payload)])?.validCoverageFraction).toBeNull();
   });
 
+  it("preserves both overlap measurements and per-zone priority with the task summary", () => {
+    const rich: WaterNitrogenObservationViewModel = {
+      ...payload,
+      spatialPrioritySummary: { changesAnyPriority: true, orderedZoneIds: ["zone-1"] },
+      zones: [{ id: "zone-1", opticalZoneId: "weak-1", meanNdvi: 0.5, ndviDeviation: -0.1,
+        radarOverlap: { status: "computed", overlapAreaHa: 0.2, overlapFraction: 0.1 },
+        lowlandOverlap: { status: "computed", overlapAreaHa: 0, overlapFraction: 0 },
+        spatialPriority: { status: "computed", changesPriority: true, preferredBecause: "radar_overlap", note: "雷达相交，先行核查" } }],
+    };
+    expect(getWaterNitrogenObservation([result(rich)])).toMatchObject({
+      spatialPrioritySummary: { changesAnyPriority: true },
+      zones: [{ radarOverlap: { overlapAreaHa: 0.2 }, lowlandOverlap: { overlapAreaHa: 0 }, spatialPriority: { preferredBecause: "radar_overlap" } }],
+    });
+  });
+
   it("does not invent zero hectares when an area field is absent", () => {
     const { attentionAreaHa: _area, ...withoutArea } = payload;
     expect(getWaterNitrogenObservation([result(withoutArea)])).toBeNull();
