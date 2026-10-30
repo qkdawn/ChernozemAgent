@@ -96,6 +96,9 @@ export function createCodexAnalysisBriefWriter(options: {
           responseChars: response.length,
         });
       }
+      if (parsed.actions.length === 0 && input.brief.actions.length > 0) {
+        parsed.actions = input.brief.actions;
+      }
       const references = resolveEvidence(parsed.evidence, results, evidence);
       const zones = knownZoneIds(results);
       const zoneRefs = [

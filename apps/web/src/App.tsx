@@ -30,6 +30,7 @@ import { agentToolLabel, agentToolStatusLabel } from "./agent-run-presentation.j
 import { archiveField, createDataAcquisition, createField, createNitrogenPrescription, createTask, fetchAcquisition, fetchAcquisitionHistory, fetchAgentRun, fetchDataMatches, fetchFieldConversation, fetchFieldHistory, fetchFieldVisualizations, fetchFields, fetchLatestAcquisition, fetchNitrogenPrescriptionContext, fetchNitrogenPrescriptions, fetchScoutingNotes, fetchTask, fetchTaskAnalysis, fetchTaskConversation, fetchTasks, importFields, nitrogenPrescriptionExportUrl, planAgentAnalysis, saveFieldInspection, saveScoutingNote, sendFieldConversationMessage, sendTaskConversationMessage, updateField } from "./api.js";
 import { acquisitionProgressSummary, acquisitionReadyForRequest, acquisitionRequestForField } from "./data-acquisition-presentation.js";
 import { analysisBriefVisibleSections } from "./analysis-brief-presentation.js";
+import { fieldReportPresentation } from "./field-report-presentation.js";
 import { mapFindingsForLayer } from "./map-findings.js";
 import { MapCanvas, type MapVisualizationLayer } from "./MapCanvas.js";
 import { getWaterNitrogenObservation, waterNitrogenObservationStatus, type WaterNitrogenObservationViewModel } from "./water-nitrogen-presentation.js";
@@ -1577,6 +1578,7 @@ function TaskResult({ surface, field, task, acquisition, agentRun, analysisResul
   const waterNitrogenObservation = task.objective === "water_nitrogen_diagnosis" ? getWaterNitrogenObservation(analysisResults) : null;
   const waterloggingObservation = task.objective === "waterlogging_detection" ? getWaterloggingObservation(analysisResults) : null;
   const frostObservation = task.objective === "frost_risk_warning" ? getFrostObservation(analysisResults) : null;
+  const fieldReport = fieldReportPresentation(analysisResults, visualizations, task.id);
   const datedOpticalLayers = visualizations
     .filter((layer) => layer.taskId === task.id && layer.source === "sentinel-2" && layer.date !== "static")
     .sort((left, right) => right.date.localeCompare(left.date));
@@ -1656,6 +1658,8 @@ function TaskResult({ surface, field, task, acquisition, agentRun, analysisResul
       {!waterNitrogenObservation && !observationReady ? <p>{unavailablePresentation.description}</p> : null}
     </section>
 
+    {fieldReport.heroMap || fieldReport.mean !== null || fieldReport.zones.length ? <FieldReportView report={fieldReport} /> : null}
+
     {task.brief ? <AnalysisBriefView brief={task.brief} /> : null}
 
     {growthObservation ? <GrowthObservationView observation={growthObservation} trendChart={charts.find((artifact) => artifact.chart.title === "NDVI 时序") ?? null} /> : null}
@@ -1714,6 +1718,35 @@ function TaskResult({ surface, field, task, acquisition, agentRun, analysisResul
     {surface === "agent" && canContinueConversation(task) ? <TaskConversationFollowUps task={task} /> : null}
     {inspectionTarget && inspectionDraftLocation ? <FieldInspectionModal taskId={task.id} finding={inspectionTarget} location={inspectionDraftLocation} existing={inspections.find((item) => item.findingId === inspectionTarget.id) ?? null} onClose={() => { setInspectionTarget(null); setInspectionDraftLocation(null); onInspectionEnd(); }} onSaved={(record) => { setInspections((current) => [...current.filter((item) => item.findingId !== record.findingId), record]); setInspectionTarget(null); setInspectionDraftLocation(null); onInspectionEnd(); }} /> : null}
   </div>;
+}
+
+function FieldReportView({ report }: { report: ReturnType<typeof fieldReportPresentation> }) {
+  const layer = report.heroMap;
+  return <section className="field-report" aria-label="田块分析图件">
+    {layer ? <figure className="field-report-map">
+      <img src={artifactUrl(layer.ref)} alt={`${layer.label} ${layer.date} 分析图`} />
+      <figcaption><strong>{layer.label}</strong><span>{formatShortDate(layer.date)} · {layer.resolutionMeters} 米</span></figcaption>
+    </figure> : null}
+    {report.mean !== null || report.std !== null ? <div className="field-report-stats" aria-label="指数统计">
+      {report.mean !== null ? <div><small>平均 NDVI</small><strong>{report.mean.toFixed(3)}</strong></div> : null}
+      {report.std !== null ? <div><small>标准差</small><strong>{report.std.toFixed(3)}</strong></div> : null}
+      {report.min !== null ? <div><small>最小值</small><strong>{report.min.toFixed(3)}</strong></div> : null}
+      {report.max !== null ? <div><small>最大值</small><strong>{report.max.toFixed(3)}</strong></div> : null}
+      {report.coverageFraction !== null ? <div><small>有效覆盖</small><strong>{(report.coverageFraction * 100).toFixed(0)}%</strong></div> : null}
+    </div> : null}
+    {report.zones.length ? <div className="field-report-zones">
+      <h4>分区统计</h4>
+      <div className="field-report-table-scroll"><table><thead><tr><th>分区</th><th>面积</th><th>平均 NDVI</th><th>偏差</th><th>参考用量</th></tr></thead>
+        <tbody>{report.zones.map((zone, index) => <tr key={zone.id || index}>
+          <th>{zone.label}</th>
+          <td>{zone.areaHa === null ? "—" : `${zone.areaHa.toFixed(2)} ha`}</td>
+          <td>{zone.meanNdvi === null ? "—" : zone.meanNdvi.toFixed(3)}</td>
+          <td>{zone.deviation === null ? "—" : `${zone.deviation > 0 ? "+" : ""}${zone.deviation.toFixed(3)}`}</td>
+          <td>{zone.rateKgHa === null ? "—" : `${zone.rateKgHa.toFixed(1)} kg/ha`}</td>
+        </tr>)}</tbody>
+      </table></div>
+    </div> : null}
+  </section>;
 }
 
 function AnalysisBriefView({ brief }: { brief: AnalysisBrief }) {

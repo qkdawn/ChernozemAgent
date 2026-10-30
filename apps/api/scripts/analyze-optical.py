@@ -464,6 +464,7 @@ def main() -> None:
     def metric_summary(values):
         return {
             "mean": float(np.mean(values)),
+            "std": float(np.std(values)),
             "min": float(np.min(values)),
             "max": float(np.max(values)),
             "validPixelCount": valid_count,
