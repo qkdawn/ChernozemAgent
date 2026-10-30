@@ -52,9 +52,13 @@ class AnalyzeOpticalTest(unittest.TestCase):
             self.assertGreater(result["quality"]["validPixelCount"], 0)
             self.assertGreater(len(result["zones"]), 0)
             self.assertGreater(result["metrics"]["ndvi"]["std"], 0)
+            self.assertTrue(np.isfinite(result["metrics"]["ndvi"]["std"]))
             self.assertGreater(result["metrics"]["ndvi"]["min"], 0)
             self.assertEqual({item["metric"] for item in result["visualizations"]}, {"true_color", "ndvi", "ndvi_contrast", "ndre", "reci", "msavi", "ndmi", "ndwi"})
             self.assertTrue(all((output_dir / item["fileName"]).stat().st_size > 0 for item in result["visualizations"]))
+            for item in result["visualizations"]:
+                with (output_dir / item["fileName"]).open("rb") as image:
+                    self.assertEqual(image.read(8), b"\x89PNG\r\n\x1a\n")
             left = min(point[0] for item in result["visualizations"] for point in item["bounds"])
             right = max(point[0] for item in result["visualizations"] for point in item["bounds"])
             self.assertLess(left, 123.802)
@@ -91,6 +95,37 @@ class AnalyzeOpticalTest(unittest.TestCase):
             self.assertLess(result["zoningQuality"]["robustRange"], result["zoningQuality"]["minimumRobustRange"])
             self.assertGreater(len(result["zones"]), 0)
             self.assertEqual({zone["class"] for zone in result["zones"]}, {"near_average"})
+
+    def test_does_not_publish_metrics_when_preview_cannot_be_written(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            spectral_10, spectral_20, scl = write_optical_inputs(root, (123.798, 42.298, 123.806, 42.306), "EPSG:4326")
+            blocked_output = root / "blocked-output"
+            blocked_output.write_text("not a directory")
+            completed = subprocess.run(
+                [sys.executable, str(SCRIPT)],
+                input=json.dumps({"spectral10": str(spectral_10), "spectral20": str(spectral_20), "scl": str(scl),
+                                  "boundary": field_boundary(), "sourceDate": "2026-06-26", "outputDir": str(blocked_output)}),
+                text=True, capture_output=True, check=False,
+            )
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertEqual(completed.stdout, "")
+
+    def test_omits_std_when_only_one_valid_pixel_is_available(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            spectral_10, spectral_20, scl = write_optical_inputs(root, (123.798, 42.298, 123.806, 42.306), "EPSG:4326")
+            boundary = [
+                {"longitude": 123.8021, "latitude": 42.3017},
+                {"longitude": 123.8023, "latitude": 42.3017},
+                {"longitude": 123.8023, "latitude": 42.3019},
+                {"longitude": 123.8021, "latitude": 42.3019},
+                {"longitude": 123.8021, "latitude": 42.3017},
+            ]
+            result = run_tool(spectral_10, spectral_20, scl, boundary, root / "output")
+            self.assertEqual(result["quality"]["validPixelCount"], 1)
+            self.assertNotIn("std", result["metrics"]["ndvi"])
+            self.assertTrue(any(item["metric"] == "ndvi" for item in result["visualizations"]))
 
     def test_returns_needs_data_when_raster_does_not_cover_field(self):
         with tempfile.TemporaryDirectory() as directory:

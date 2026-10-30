@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import tempfile
 
 import numpy as np
 import rasterio
@@ -98,8 +99,7 @@ def write_visualization(output_dir: str, file_name: str, values: np.ndarray, val
     rgba = colorize(cropped_values, cropped_valid, minimum, maximum, palette)
     image = Image.fromarray(rgba, mode="RGBA")
     image = resize_for_presentation(image)
-    os.makedirs(output_dir, exist_ok=True)
-    image.save(os.path.join(output_dir, file_name), format="PNG", optimize=True)
+    save_png(image, output_dir, file_name)
     crop_transform = window_transform(rasterio.windows.Window(x0, y0, x1 - x0, y1 - y0), transform)
     west, south, east, north = array_bounds(y1 - y0, x1 - x0, crop_transform)
     left, bottom, right, top = transform_bounds(crs, "EPSG:4326", west, south, east, north, densify_pts=21)
@@ -132,8 +132,7 @@ def write_true_color_visualization(output_dir: str, file_name: str, red: np.ndar
         rgba[..., channel] = np.round(np.power(normalized, 0.9) * 255).astype(np.uint8)
     rgba[..., 3][cropped_valid] = 255
     image = resize_for_presentation(Image.fromarray(rgba, mode="RGBA"))
-    os.makedirs(output_dir, exist_ok=True)
-    image.save(os.path.join(output_dir, file_name), format="PNG", optimize=True)
+    save_png(image, output_dir, file_name)
     crop_transform = window_transform(rasterio.windows.Window(x0, y0, x1 - x0, y1 - y0), transform)
     west, south, east, north = array_bounds(y1 - y0, x1 - x0, crop_transform)
     left, bottom, right, top = transform_bounds(crs, "EPSG:4326", west, south, east, north, densify_pts=21)
@@ -144,6 +143,19 @@ def write_true_color_visualization(output_dir: str, file_name: str, red: np.ndar
         "max": 1.0,
         "resolutionMeters": pixel_size_meters(crop_transform, crs, (top + bottom) / 2),
     }
+
+
+def save_png(image: Image.Image, output_dir: str, file_name: str) -> None:
+    """Publish only complete images; a failed write must not replace an existing preview."""
+    os.makedirs(output_dir, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=output_dir, suffix=".png", delete=False) as temporary:
+        temporary_path = temporary.name
+    try:
+        image.save(temporary_path, format="PNG", optimize=True)
+        os.replace(temporary_path, os.path.join(output_dir, file_name))
+    finally:
+        if os.path.exists(temporary_path):
+            os.unlink(temporary_path)
 
 
 def majority_filter(classes: np.ndarray, valid: np.ndarray, passes: int = 2) -> np.ndarray:
@@ -293,7 +305,9 @@ def main() -> None:
     scl_path = request["scl"]
     boundary = request["boundary"]
     source_date = request["sourceDate"]
-    output_dir = request.get("outputDir")
+    output_dir = request["outputDir"]
+    if not output_dir:
+        raise ValueError("outputDir is required for optical preview artifacts")
 
     with rasterio.open(spectral_20) as reference:
         shape = (reference.height, reference.width)
@@ -462,15 +476,19 @@ def main() -> None:
                 visualizations.append({**layer, "metric": metric, "label": label})
 
     def metric_summary(values):
-        return {
+        summary = {
             "mean": float(np.mean(values)),
-            "std": float(np.std(values)),
             "min": float(np.min(values)),
             "max": float(np.max(values)),
             "validPixelCount": valid_count,
             "totalPixelCount": total,
             "coverageFraction": valid_fraction,
         }
+        if values.size >= 2:
+            std = float(np.std(values))
+            if np.isfinite(std):
+                summary["std"] = std
+        return summary
 
     print(json.dumps({
         "status": status,

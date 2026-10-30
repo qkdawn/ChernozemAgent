@@ -759,7 +759,7 @@ async function collectFieldVisualizations(tasks: AnalysisTask[]): Promise<FieldV
     for (const result of task.analysisResults) {
       for (const artifact of result.artifacts) {
         if (artifact.visualization) {
-          const key = `${artifact.visualization.source}:${artifact.visualization.date}:${artifact.visualization.metric}`;
+          const key = `${task.id}:${artifact.visualization.source}:${artifact.visualization.date}:${artifact.visualization.metric}`;
           if (layerKeys.has(key) || !await artifactExists(artifact.ref)) continue;
           layerKeys.add(key);
           layers.push({ ref: artifact.ref, taskId: task.id, objective: task.objective, createdAt: result.createdAt, visualization: artifact.visualization });

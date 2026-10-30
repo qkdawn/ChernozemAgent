@@ -1,7 +1,7 @@
 import type { AnalysisArtifact, AnalysisResult, AnalysisTimeRange, DataAcquisitionRun, FieldSummary, AcquiredAsset, VisualizationMetric } from "@chernozem/contracts";
 import type { ControlledAnalysisTool } from "@chernozem/agent-runtime";
-import { mkdir, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, stat, writeFile } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 
 import { createAnalysisResultBase } from "./analysis-result-base.js";
 import type { AnalysisResultStore } from "./analysis-store.js";
@@ -166,9 +166,11 @@ export class GrowthAnalysisService {
     opticalRunner?: OpticalRunner,
   ) {
     this.opticalRunner = opticalRunner ?? ((input) => runPythonTool<OpticalPythonResult>("analyze-optical.py", input, pythonExecutable));
+    this.requirePreview = !opticalRunner;
   }
 
   private readonly opticalRunner: OpticalRunner;
+  private readonly requirePreview: boolean;
 
   createTools(field: FieldSummary, acquisitions: DataAcquisitionRun[], observationRange?: AnalysisTimeRange, targetRange: AnalysisTimeRange | undefined = observationRange): ControlledAnalysisTool[] {
     return [
@@ -236,6 +238,22 @@ export class GrowthAnalysisService {
         if (payload.metrics && (payload.status === "succeeded" || payload.status === "partial")) {
           if (payload.zoningMethod !== OPTICAL_ZONING_METHOD || !isOpticalZoningQuality(payload.zoningQuality)) {
             throw new Error("光学处理结果缺少当前版本的分区质量信息。");
+          }
+          if (this.requirePreview && !payload.visualizations?.some((visualization) => visualization.metric === "ndvi")) {
+            throw new Error("光学处理结果缺少 NDVI 预览图。");
+          }
+          if (payload.visualizations?.length) {
+            if (!payload.visualizations.some((visualization) => visualization.metric === "ndvi")) {
+              throw new Error("光学处理结果缺少 NDVI 预览图。");
+            }
+            for (const visualization of payload.visualizations) {
+              if (basename(visualization.fileName) !== visualization.fileName) throw new Error("光学预览图文件名无效。");
+              const image = await stat(resolve(visualizationDirectory, visualization.fileName));
+              if (!image.isFile() || image.size === 0) throw new Error("光学预览图文件为空。");
+            }
+          }
+          for (const metric of Object.values(payload.metrics)) {
+            if (metric.std !== undefined && !Number.isFinite(metric.std)) delete metric.std;
           }
           const observation = { observationDate: candidate.date, metrics: payload.metrics, quality: payload.quality };
           candidate.zones = payload.zones.map((zone) => ({

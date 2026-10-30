@@ -1,11 +1,15 @@
-import type { DataAcquisitionRun, FieldSummary } from "@chernozem/contracts";
+import type { AnalysisTask, DataAcquisitionRun, FieldSummary } from "@chernozem/contracts";
 import { CornSkillRunner } from "@chernozem/agent-runtime";
 import { afterEach, describe, expect, it } from "vitest";
-import { rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { createMemoryAnalysisResultStore } from "./analysis-store.js";
+import { createMemoryAcquisitionStore } from "./acquisition-store.js";
 import { GrowthAnalysisService, type OpticalPythonResult } from "./analysis-tools.js";
+import type { FieldStore } from "./field-store.js";
+import { reanalyzeGrowthOptical } from "./reanalyze-growth-optical.js";
+import { createMemoryAnalysisTaskStore } from "./task-store.js";
 
 const taskId = "11111111-1111-4111-8111-111111111111";
 
@@ -14,6 +18,74 @@ afterEach(async () => {
 });
 
 describe("growth analysis tools", () => {
+  it("persists NDVI preview references and finite std on optical and assessment results", async () => {
+    const store = createMemoryAnalysisResultStore();
+    const service = new GrowthAnalysisService(store, "python", async (input) => {
+      const { outputDir, sourceDate } = input as { outputDir: string; sourceDate: string };
+      await mkdir(outputDir, { recursive: true });
+      await writeFile(resolve(outputDir, `${sourceDate}-ndvi.png`), Buffer.from("synthetic-test-image"));
+      const payload = opticalPayload("succeeded", 0.7);
+      payload.metrics!.ndvi.std = 0.125;
+      payload.visualizations = [{ fileName: `${sourceDate}-ndvi.png`, metric: "ndvi", label: "NDVI", bounds: [[123.8, 42.31], [123.81, 42.31], [123.81, 42.3], [123.8, 42.3]], min: 0, max: 1, resolutionMeters: 20 }];
+      return payload;
+    });
+    const results = await new CornSkillRunner(service.createTools(field(), [acquisition()])).run("growth_stage_monitoring", taskId);
+    const stored = await store.list(taskId);
+    for (const result of [results[0], results[2], stored.find((item) => item.kind === "optical_condition"), stored.find((item) => item.kind === "assessment")]) {
+      expect(result?.artifacts).toEqual(expect.arrayContaining([expect.objectContaining({
+        ref: expect.stringMatching(new RegExp(`^analysis/${taskId}/.+/2026-06-26-ndvi\\.png$`)),
+        kind: "map", visualization: expect.objectContaining({ metric: "ndvi" }),
+      })]));
+    }
+    expect((stored.find((item) => item.kind === "optical_condition")?.result as { current: { metrics: { ndvi: { std: number } } } }).current.metrics.ndvi.std).toBe(0.125);
+  });
+
+  it("omits an unavailable std and rejects missing preview files", async () => {
+    const store = createMemoryAnalysisResultStore();
+    const withoutStd = new GrowthAnalysisService(store, "python", async () => opticalPayload("succeeded", 0.7));
+    const result = await withoutStd.createTools(field(), [acquisition()])[0]!.execute({ taskId });
+    expect((result.result as { current: { metrics: { ndvi: { std?: number } } } }).current.metrics.ndvi).not.toHaveProperty("std");
+
+    const missingImage = new GrowthAnalysisService(store, "python", async () => ({
+      ...opticalPayload("succeeded", 0.7),
+      visualizations: [{ fileName: "missing-ndvi.png", metric: "ndvi", label: "NDVI", bounds: [[123.8, 42.31], [123.81, 42.31], [123.81, 42.3], [123.8, 42.3]], min: 0, max: 1, resolutionMeters: 20 }],
+    }));
+    const failed = await missingImage.createTools(field(), [acquisition()])[0]!.execute({ taskId });
+    expect(failed).toMatchObject({ status: "failed", result: null, error: { code: "optical_processing_failed" } });
+  });
+
+  it("backfills an existing growth task from its acquisition IDs without changing writer actions", async () => {
+    const resultsStore = createMemoryAnalysisResultStore();
+    const acquisitionStore = createMemoryAcquisitionStore();
+    const taskStore = createMemoryAnalysisTaskStore();
+    const original = await new CornSkillRunner(new GrowthAnalysisService(resultsStore, "python", async () => opticalPayload("succeeded", 0.7))
+      .createTools(field(), [acquisition()])).run("growth_stage_monitoring", taskId);
+    await acquisitionStore.save(acquisition());
+    const task: AnalysisTask = {
+      id: taskId, fieldId: field().id, boundaryVersion: 1, objective: "growth_stage_monitoring",
+      timeRange: { start: "2026-06-01T00:00:00.000Z", end: "2026-06-30T23:59:59.000Z" },
+      status: "completed", progress: 100, stage: "完成", createdAt: "2026-06-30T00:00:00.000Z", completedAt: "2026-06-30T01:00:00.000Z",
+      demoData: false, summary: "原始分析", brief: null, findings: [], sources: [], analysisResults: original,
+      limitations: [], nextActions: [{ code: "inspect", label: "现场核查" }], failure: null,
+    };
+    await taskStore.save(task);
+    const stores = { tasks: taskStore, results: resultsStore, acquisitions: acquisitionStore,
+      fields: { async get() { return field(); } } as unknown as FieldStore };
+    const rerun = await reanalyzeGrowthOptical(taskId, stores, async (input) => {
+      const { outputDir, sourceDate } = input as { outputDir: string; sourceDate: string };
+      await writeFile(resolve(outputDir, `${sourceDate}-ndvi.png`), Buffer.from("synthetic-test-image"));
+      const payload = opticalPayload("succeeded", 0.7);
+      payload.metrics!.ndvi.std = 0.125;
+      payload.visualizations = [{ fileName: `${sourceDate}-ndvi.png`, metric: "ndvi", label: "NDVI", bounds: [[123.8, 42.31], [123.81, 42.31], [123.81, 42.3], [123.8, 42.3]], min: 0, max: 1, resolutionMeters: 20 }];
+      return payload;
+    });
+    expect(rerun).toMatchObject({ resultId: original[0]?.id, std: 0.125 });
+    const updated = (await taskStore.get(taskId))!;
+    expect(updated.nextActions).toEqual(task.nextActions);
+    expect(updated.summary).toBe(task.summary);
+    expect(updated.analysisResults.find((item) => item.kind === "assessment")?.artifacts.some((artifact) => artifact.visualization?.metric === "ndvi")).toBe(true);
+    expect((updated.analysisResults.find((item) => item.kind === "optical_condition")?.result as { current: { metrics: { ndvi: { std: number } } } }).current.metrics.ndvi.std).toBe(0.125);
+  });
   it("separates comparison dates outside the request and names the area denominator", async () => {
     const store = createMemoryAnalysisResultStore();
     const service = new GrowthAnalysisService(store, "python", async () => opticalPayload("succeeded", 0.7));
