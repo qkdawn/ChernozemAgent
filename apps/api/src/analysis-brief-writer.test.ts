@@ -78,6 +78,17 @@ describe("analysis document writer", () => {
     expect(analysisWritingPrompt).toContain("顶层 actions 数组必须返回，不能只在 document 写 A/B 而省略 actions");
   });
 
+  it("fills model-empty actions from the deterministic brief", async () => {
+    const input = writingInput();
+    input.brief.actions = document().actions;
+    const output = document();
+    output.actions = [];
+    const { brief: generated } = await createCodexAnalysisBriefWriter(runtime(JSON.stringify(output), input)).write(input);
+
+    expect(generated.generation.mode).toBe("model_generated");
+    expect(generated.actions).toEqual(input.brief.actions);
+  });
+
   it.each([
     ["foreign result", { resultId: "other-task-result", path: "/current/metrics/ndvi/mean" }],
     ["invented field", { resultId: "optical-1", path: "/rainfallMm" }],
@@ -179,7 +190,11 @@ describe("analysis document writer", () => {
 
   it.each([undefined, "", "   "])("rejects missing or blank decisionEffect", async (decisionEffect) => {
     const output = document();
-    if (decisionEffect === undefined) delete output.actions[0]!.decisionEffect;
+    if (decisionEffect === undefined) {
+      const action = output.actions[0]!;
+      const { decisionEffect: _decisionEffect, ...withoutDecisionEffect } = action;
+      output.actions[0] = withoutDecisionEffect as typeof action;
+    }
     else output.actions[0]!.decisionEffect = decisionEffect;
     const { brief } = await createCodexAnalysisBriefWriter(runtime(JSON.stringify(output))).write(writingInput());
     expect(brief.generation).toMatchObject({ mode: "deterministic", fallbackReason: "malformed_output" });

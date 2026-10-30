@@ -51,6 +51,8 @@ class AnalyzeOpticalTest(unittest.TestCase):
             self.assertGreater(result["quality"]["totalPixelCount"], 0)
             self.assertGreater(result["quality"]["validPixelCount"], 0)
             self.assertGreater(len(result["zones"]), 0)
+            self.assertGreater(result["metrics"]["ndvi"]["std"], 0)
+            self.assertGreater(result["metrics"]["ndvi"]["min"], 0)
             self.assertEqual({item["metric"] for item in result["visualizations"]}, {"true_color", "ndvi", "ndvi_contrast", "ndre", "reci", "msavi", "ndmi", "ndwi"})
             self.assertTrue(all((output_dir / item["fileName"]).stat().st_size > 0 for item in result["visualizations"]))
             left = min(point[0] for item in result["visualizations"] for point in item["bounds"])
@@ -83,6 +85,7 @@ class AnalyzeOpticalTest(unittest.TestCase):
             result = run_tool(spectral_10, spectral_20, scl, boundary, root / "output")
 
             self.assertEqual(result["status"], "succeeded")
+            self.assertAlmostEqual(result["metrics"]["ndvi"]["std"], 0, places=6)
             self.assertEqual(result["zoningMethod"], "ndvi-quantile-connected-v2")
             self.assertFalse(result["zoningQuality"]["variationVisible"])
             self.assertLess(result["zoningQuality"]["robustRange"], result["zoningQuality"]["minimumRobustRange"])

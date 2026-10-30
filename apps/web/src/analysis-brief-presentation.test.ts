@@ -40,7 +40,7 @@ function brief(overrides: Partial<AnalysisBrief> = {}): AnalysisBrief {
 }
 
 const action: AnalysisBrief["actions"][number] = {
-  label: "巡查西南区域", where: "西南区域", timing: "近期", checklist: [],
+  label: "巡查西南区域", where: "西南区域", timing: "近期", checklist: [], decisionEffect: "若 A 则继续核查；若 B 则调整判断。",
 };
 
 const document: NonNullable<AnalysisBrief["document"]> = { title: "农情分析", subtitle: "长势巡检", sections: [] };

@@ -879,6 +879,25 @@ button:disabled { cursor: not-allowed; }
 .brief-evidence li p { margin: 0; font-size: 10px; line-height: 1.55; }
 .brief-evidence li small { display: block; margin-top: 3px; color: #89928c; font-size: 8px; line-height: 1.4; overflow-wrap: anywhere; }
 .brief-actions { display: grid; gap: 10px; padding: 14px 0 16px; }
+.field-report { display: grid; gap: 0; margin: 0 20px 12px; border-bottom: 1px solid #e2e8e3; background: #fff; }
+.field-report-map { margin: 0; overflow: hidden; border: 1px solid #d8e2da; background: #f0f3f0; }
+.field-report-map img { display: block; width: 100%; aspect-ratio: 1.55; object-fit: contain; }
+.field-report-map figcaption { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; color: #66736a; font-size: 9px; }
+.field-report-map figcaption strong { color: #344239; font-size: 10px; }
+.field-report-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); padding: 10px 0; border-bottom: 1px solid #e5eae6; }
+.field-report-stats > div { display: grid; gap: 3px; padding: 0 8px; border-right: 1px solid #e5eae6; }
+.field-report-stats > div:first-child { padding-left: 0; }
+.field-report-stats > div:last-child { border-right: 0; }
+.field-report-stats small { color: #7d8880; font-size: 8px; }
+.field-report-stats strong { color: #2f4035; font: 600 12px/1.3 "Geist Mono", Consolas, monospace; }
+.field-report-zones { padding: 12px 0; }
+.field-report-zones h4 { margin: 0 0 8px; color: #3e4b42; font-size: 11px; }
+.field-report-table-scroll { overflow-x: auto; }
+.field-report table { width: 100%; border-collapse: collapse; font-size: 9px; text-align: right; }
+.field-report th, .field-report td { padding: 7px 6px; border-bottom: 1px solid #e8ece9; white-space: nowrap; }
+.field-report thead th { color: #79857d; font-size: 8px; font-weight: 700; }
+.field-report tbody th { color: #435148; font-weight: 650; text-align: left; }
+.field-report td { color: #59665d; font-family: "Geist Mono", Consolas, monospace; }
 .brief-action { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 9px; padding: 9px 0; }
 .brief-action > i { display: grid; width: 20px; height: 20px; place-items: center; color: #69766d; border: 1px solid #cdd7cf; border-radius: 50%; font: 700 9px/1 "Geist Mono", Consolas, monospace; font-style: normal; }
 .brief-action.is-primary { padding: 10px; border: 1px solid #c8dfcd; background: #f5faf5; }

@@ -77,7 +77,7 @@ function task(overrides: Partial<AnalysisTask>): AnalysisTask {
       version: "analysis-brief-v2", headline: "西南区域需要关注", overview: "西南区域出现持续低值。",
       reasoning: "低温预报与地形背景共同支持当前判断。", uncertainty: "预报仍可能更新。",
       evidence: [{ statement: "未来窗口最低温低于阈值。", sourceDates: [{ source: "ECMWF IFS", date: "2026-08-20" }] }],
-      actions: [{ label: "核查西南区域", where: "西南区域", timing: "24 小时内", checklist: ["叶片状态"] }],
+      actions: [{ label: "核查西南区域", where: "西南区域", timing: "24 小时内", checklist: ["叶片状态"], decisionEffect: "若 A 则维持判断；若 B 则更新判断。" }],
       generation: { mode: "deterministic", generatedAt: "2026-08-20T00:01:00.000Z", provider: null, modelId: null, promptVersion: null, fallbackReason: null },
     },
     findings: [{ id: "zone-1", title: "西南关注区", summary: "连续观测偏弱。", severity: "watch", areaHa: 1.25, sourceDates: ["2026-08-20"], zone: [{ longitude: 123.8, latitude: 42.3 }, { longitude: 123.801, latitude: 42.3 }, { longitude: 123.801, latitude: 42.301 }] }],

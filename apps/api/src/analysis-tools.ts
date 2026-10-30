@@ -72,6 +72,7 @@ interface OpticalChange {
 
 interface MetricSummary {
   mean: number;
+  std?: number;
   min: number;
   max: number;
   validPixelCount: number;
