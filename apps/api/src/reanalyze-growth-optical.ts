@@ -4,7 +4,7 @@ import { stat } from "node:fs/promises";
 import type { AcquisitionStore } from "./acquisition-store.js";
 import type { AnalysisResultStore } from "./analysis-store.js";
 import { createMemoryAnalysisResultStore } from "./analysis-store.js";
-import { GrowthAnalysisService, hasCompleteOpticalAssets, type OpticalRunner } from "./analysis-tools.js";
+import { GrowthAnalysisService, hasCompleteOpticalAssets, opticalObservationChanges, opticalTrendCharts, type OpticalConditionPayload, type OpticalRunner } from "./analysis-tools.js";
 import { resolveAcquisitionArtifact } from "./data-acquisition.js";
 import type { FieldStore } from "./field-store.js";
 import type { AnalysisTaskStore } from "./task-store.js";
@@ -46,20 +46,44 @@ export async function reanalyzeGrowthOptical(taskId: string, stores: {
   if (!refreshed.result || (refreshed.status !== "succeeded" && refreshed.status !== "partial")) {
     throw new Error(`Optical reanalysis failed: ${refreshed.error?.message ?? refreshed.summary}`);
   }
-  type Observation = { observationDate: string; metrics: { ndvi: { mean: number; std?: number } } };
-  type OpticalPayload = { current: Observation; observations: Observation[]; zones: unknown[] };
-  const oldPayload = prior.result as OpticalPayload;
-  const newPayload = refreshed.result as OpticalPayload;
+  const oldPayload = prior.result as OpticalConditionPayload;
+  const newPayload = refreshed.result as OpticalConditionPayload;
   const oldCurrent = oldPayload.current;
   const newCurrent = newPayload.current;
-  const sameObservations = oldPayload.observations.length === newPayload.observations.length
-    && oldPayload.observations.every((observation, index) => observation.observationDate === newPayload.observations[index]?.observationDate
-      && Math.abs(observation.metrics.ndvi.mean - newPayload.observations[index]!.metrics.ndvi.mean) <= 1e-6);
+  const refreshedByDate = new Map(newPayload.observations.map((observation) => [observation.observationDate, observation]));
+  const historicalByDate = new Map(oldPayload.observations.map((observation) => [observation.observationDate, observation]));
+  const overlappingMeansMatch = newPayload.observations.every((observation) => {
+    const oldObservation = historicalByDate.get(observation.observationDate);
+    return oldObservation !== undefined && Number.isFinite(oldObservation.metrics?.ndvi?.mean)
+      && Number.isFinite(observation.metrics?.ndvi?.mean)
+      && Math.abs(oldObservation.metrics.ndvi.mean - observation.metrics.ndvi.mean) <= 1e-6;
+  });
   if (refreshed.id !== prior.id || oldCurrent?.observationDate !== newCurrent?.observationDate
     || !Number.isFinite(oldCurrent?.metrics?.ndvi?.mean) || !Number.isFinite(newCurrent?.metrics?.ndvi?.mean)
-    || !sameObservations || oldPayload.zones.length !== newPayload.zones.length) {
+    || Math.abs(oldCurrent.metrics.ndvi.mean - newCurrent.metrics.ndvi.mean) > 1e-6
+    || refreshedByDate.size !== newPayload.observations.length || !overlappingMeansMatch || oldPayload.zones.length !== newPayload.zones.length) {
     throw new Error("Reanalysis changed the historical assessment inputs; review a full task rerun instead.");
   }
+  const mergedObservations = oldPayload.observations.map((observation) => refreshedByDate.get(observation.observationDate) ?? observation);
+  // Keep historical metadata and evidence: this refresh may cover only part of the original time series.
+  const mergedResult: AnalysisResult<OpticalConditionPayload> = {
+    ...prior,
+    result: {
+      ...oldPayload,
+      ...newPayload,
+      observations: mergedObservations,
+      changes: opticalObservationChanges(mergedObservations),
+      zoneSnapshots: [
+        ...(oldPayload.zoneSnapshots ?? []).filter((snapshot) => !refreshedByDate.has(snapshot.observationDate)),
+        ...(newPayload.zoneSnapshots ?? []),
+      ],
+    },
+    artifacts: [
+      ...prior.artifacts.filter((artifact) => !artifact.chart && !artifact.visualization),
+      ...refreshed.artifacts.filter((artifact) => artifact.visualization),
+      ...opticalTrendCharts(taskId, prior.id, mergedObservations),
+    ],
+  };
   const ndvi = refreshed.artifacts.find((artifact) => artifact.visualization?.metric === "ndvi"
     && artifact.visualization.date === newCurrent?.observationDate);
   const path = ndvi && resolveAcquisitionArtifact(ndvi.ref);
@@ -71,17 +95,17 @@ export async function reanalyzeGrowthOptical(taskId: string, stores: {
     ?? storedResults.find((result) => result.kind === "assessment");
   const updatedAssessment = assessment ? {
     ...assessment,
-    artifacts: [...assessment.artifacts.filter((artifact) => !artifact.visualization),
-      ...refreshed.artifacts.filter((artifact) => artifact.visualization)],
+    artifacts: [...assessment.artifacts.filter((artifact) => !artifact.visualization && !artifact.chart),
+      ...mergedResult.artifacts.filter((artifact) => artifact.visualization || artifact.chart)],
   } : null;
   const snapshot = task.analysisResults.some((result) => result.kind === "optical_condition") ? task.analysisResults : storedResults;
   const updated = snapshot.map((result): AnalysisResult<unknown> => {
-    if (result.kind === "optical_condition") return refreshed;
+    if (result.kind === "optical_condition") return mergedResult;
     if (result.kind === "assessment" && updatedAssessment) return updatedAssessment;
     return result;
   });
-  await stores.results.save(refreshed);
+  await stores.results.save(mergedResult);
   if (updatedAssessment) await stores.results.save(updatedAssessment);
   await stores.tasks.save({ ...task, analysisResults: updated });
-  return { resultId: refreshed.id, ndviRef: ndvi.ref, std: newCurrent?.metrics?.ndvi?.std ?? null };
+  return { resultId: mergedResult.id, ndviRef: ndvi.ref, std: newCurrent?.metrics?.ndvi?.std ?? null };
 }

@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 
 import { createMemoryAnalysisResultStore } from "./analysis-store.js";
 import { createMemoryAcquisitionStore } from "./acquisition-store.js";
-import { GrowthAnalysisService, type OpticalPythonResult } from "./analysis-tools.js";
+import { GrowthAnalysisService, type OpticalConditionPayload, type OpticalPythonResult } from "./analysis-tools.js";
 import type { FieldStore } from "./field-store.js";
 import { reanalyzeGrowthOptical } from "./reanalyze-growth-optical.js";
 import { createMemoryAnalysisTaskStore } from "./task-store.js";
@@ -54,13 +54,25 @@ describe("growth analysis tools", () => {
     expect(failed).toMatchObject({ status: "failed", result: null, error: { code: "optical_processing_failed" } });
   });
 
-  it("backfills an existing growth task from its acquisition IDs without changing writer actions", async () => {
+  it.each([
+    { subset: false, drift: null },
+    { subset: true, drift: null },
+    { subset: true, drift: "overlap" },
+    { subset: true, drift: "current" },
+    { subset: true, drift: "date" },
+    { subset: true, drift: "zones" },
+  ])("backfills optical metrics without changing writer actions (subset=$subset, drift=$drift)", async ({ subset, drift }) => {
     const resultsStore = createMemoryAnalysisResultStore();
     const acquisitionStore = createMemoryAcquisitionStore();
     const taskStore = createMemoryAnalysisTaskStore();
+    const dates = subset ? ["2026-07-16", "2026-07-31", "2026-10-04", "2026-10-09", "2026-10-14", "2026-10-19", "2026-10-24", "2026-10-29"] : ["2026-06-26"];
+    const acquisitions = dates.map((date) => acquisition(date));
     const original = await new CornSkillRunner(new GrowthAnalysisService(resultsStore, "python", async () => opticalPayload("succeeded", 0.7))
-      .createTools(field(), [acquisition()])).run("growth_stage_monitoring", taskId);
-    await acquisitionStore.save(acquisition());
+      .createTools(field(), acquisitions)).run("growth_stage_monitoring", taskId);
+    for (const run of acquisitions) await acquisitionStore.save(run);
+    const priorOptical = original.find((item) => item.kind === "optical_condition")!;
+    const priorPayload = priorOptical.result as OpticalConditionPayload;
+    const historicalRows = structuredClone(priorPayload.observations);
     const task: AnalysisTask = {
       id: taskId, fieldId: field().id, boundaryVersion: 1, objective: "growth_stage_monitoring",
       timeRange: { start: "2026-06-01T00:00:00.000Z", end: "2026-06-30T23:59:59.000Z" },
@@ -71,16 +83,47 @@ describe("growth analysis tools", () => {
     await taskStore.save(task);
     const stores = { tasks: taskStore, results: resultsStore, acquisitions: acquisitionStore,
       fields: { async get() { return field(); } } as unknown as FieldStore };
-    const rerun = await reanalyzeGrowthOptical(taskId, stores, async (input) => {
+    const rerunPromise = reanalyzeGrowthOptical(taskId, stores, async (input) => {
       const { outputDir, sourceDate } = input as { outputDir: string; sourceDate: string };
+      if ((subset && sourceDate.startsWith("2026-07")) || (drift === "date" && sourceDate === "2026-10-29")) throw new Error("Synthetic historical asset unavailable");
       await writeFile(resolve(outputDir, `${sourceDate}-ndvi.png`), Buffer.from("synthetic-test-image"));
-      const payload = opticalPayload("succeeded", 0.7);
+      const mean = drift === "overlap" && sourceDate === "2026-10-19" ? 0.71
+        : drift === "current" && sourceDate === "2026-10-29" ? 0.71 : 0.7;
+      const payload = opticalPayload("succeeded", mean);
+      if (drift === "zones" && sourceDate === "2026-10-29") payload.zones.push({
+        id: "synthetic-zone", row: 0, column: 0, meanNdvi: 0.7, deviation: 0, class: "near_average", validPixelCount: 90,
+        zone: [[123.8, 42.3], [123.81, 42.3], [123.81, 42.31], [123.8, 42.31], [123.8, 42.3]],
+      });
       payload.metrics!.ndvi.std = 0.125;
       payload.visualizations = [{ fileName: `${sourceDate}-ndvi.png`, metric: "ndvi", label: "NDVI", bounds: [[123.8, 42.31], [123.81, 42.31], [123.81, 42.3], [123.8, 42.3]], min: 0, max: 1, resolutionMeters: 20 }];
       return payload;
     });
+    if (drift) {
+      await expect(rerunPromise).rejects.toThrow("Reanalysis changed the historical assessment inputs");
+      expect(await taskStore.get(taskId)).toEqual(task);
+      expect(await resultsStore.get(priorOptical.id)).toEqual(priorOptical);
+      return;
+    }
+    const rerun = await rerunPromise;
     expect(rerun).toMatchObject({ resultId: original[0]?.id, std: 0.125 });
     const updated = (await taskStore.get(taskId))!;
+    const savedOptical = updated.analysisResults.find((item) => item.kind === "optical_condition")!;
+    expect(await resultsStore.get(priorOptical.id)).toEqual(savedOptical);
+    const savedPayload = savedOptical.result as OpticalConditionPayload;
+    expect(savedPayload.observations.map((row) => row.observationDate)).toEqual(dates);
+    expect(savedPayload.observations.filter((row) => !row.observationDate.startsWith("2026-07"))
+      .every((row) => row.metrics.ndvi.std === 0.125)).toBe(true);
+    if (subset) {
+      expect(savedPayload.observations.slice(0, 2)).toEqual(historicalRows.slice(0, 2));
+      expect(savedPayload.observations[0]!.metrics.ndvi).not.toHaveProperty("std");
+    }
+    expect(savedPayload.changes).toHaveLength(dates.length - 1);
+    expect(savedPayload.changes.map((change) => [change.fromDate, change.toDate])).toEqual(dates.slice(1).map((date, index) => [dates[index], date]));
+    expect(savedOptical.artifacts.find((artifact) => artifact.chart?.title === "NDVI 时序")?.chart?.series[0]?.points)
+      .toEqual(dates.map((date) => ({ label: date, value: 0.7 })));
+    expect(savedOptical.artifacts.some((artifact) => artifact.ref === rerun.ndviRef)).toBe(true);
+    expect(updated.analysisResults.find((item) => item.kind === "assessment")?.result)
+      .toEqual(original.find((item) => item.kind === "assessment")?.result);
     expect(updated.nextActions).toEqual(task.nextActions);
     expect(updated.summary).toBe(task.summary);
     expect(updated.analysisResults.find((item) => item.kind === "assessment")?.artifacts.some((artifact) => artifact.visualization?.metric === "ndvi")).toBe(true);
