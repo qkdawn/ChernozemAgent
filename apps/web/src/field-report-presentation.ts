@@ -26,8 +26,8 @@ export function fieldReportPresentation(
   taskId: string,
 ): FieldReportPresentation {
   const taskLayers = visualizations.filter((layer) => layer.taskId === taskId);
-  const heroMap = taskLayers.find((layer) => layer.metric === "ndvi")
-    ?? taskLayers.find((layer) => layer.metric === "ndvi_contrast")
+  const heroMap = taskLayers.find((layer) => layer.metric === "ndvi_contrast")
+    ?? taskLayers.find((layer) => layer.metric === "ndvi")
     ?? taskLayers.find((layer) => layer.metric !== "true_color")
     ?? null;
   const optical = [...results].reverse().find((result) => result.kind === "optical_condition"
