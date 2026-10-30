@@ -309,16 +309,7 @@ export class GrowthAnalysisService {
     }
     const current = observations.at(-1)!;
     const currentCandidate = complete.find((candidate) => candidate.date === current.observationDate)!;
-    const changes = observations.slice(1).map((observation, index) => ({
-      fromDate: observations[index]!.observationDate,
-      toDate: observation.observationDate,
-      ndviDelta: roundMetric(observation.metrics.ndvi.mean - observations[index]!.metrics.ndvi.mean),
-      ndreDelta: roundMetric(observation.metrics.ndre.mean - observations[index]!.metrics.ndre.mean),
-      reciDelta: roundMetric(observation.metrics.reci.mean - observations[index]!.metrics.reci.mean),
-      msaviDelta: roundMetric(observation.metrics.msavi.mean - observations[index]!.metrics.msavi.mean),
-      ndmiDelta: roundMetric(observation.metrics.ndmi.mean - observations[index]!.metrics.ndmi.mean),
-      ndwiDelta: roundMetric(observation.metrics.ndwi.mean - observations[index]!.metrics.ndwi.mean),
-    }));
+    const changes = opticalObservationChanges(observations);
     const zones = currentCandidate.zones ?? [];
     const zoningQuality = currentCandidate.zoningQuality!;
     const artifacts: AnalysisArtifact[] = [
@@ -630,7 +621,20 @@ function zoneAreaHa(fieldAreaHa: number, validPixelCount: number, totalPixelCoun
   return roundMetric(fieldAreaHa * Math.min(validPixelCount / totalPixelCount, 1));
 }
 
-function opticalTrendCharts(taskId: string, resultId: string, observations: OpticalObservation[]): AnalysisArtifact[] {
+export function opticalObservationChanges(observations: OpticalConditionPayload["observations"]): OpticalConditionPayload["changes"] {
+  return observations.slice(1).map((observation, index) => ({
+    fromDate: observations[index]!.observationDate,
+    toDate: observation.observationDate,
+    ndviDelta: roundMetric(observation.metrics.ndvi.mean - observations[index]!.metrics.ndvi.mean),
+    ndreDelta: roundMetric(observation.metrics.ndre.mean - observations[index]!.metrics.ndre.mean),
+    reciDelta: roundMetric(observation.metrics.reci.mean - observations[index]!.metrics.reci.mean),
+    msaviDelta: roundMetric(observation.metrics.msavi.mean - observations[index]!.metrics.msavi.mean),
+    ndmiDelta: roundMetric(observation.metrics.ndmi.mean - observations[index]!.metrics.ndmi.mean),
+    ndwiDelta: roundMetric(observation.metrics.ndwi.mean - observations[index]!.metrics.ndwi.mean),
+  }));
+}
+
+export function opticalTrendCharts(taskId: string, resultId: string, observations: OpticalObservation[]): AnalysisArtifact[] {
   const definitions = [
     { metric: "ndvi", title: "NDVI 时序" },
     { metric: "ndre", title: "NDRE 时序" },
