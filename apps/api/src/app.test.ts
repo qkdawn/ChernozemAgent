@@ -593,17 +593,20 @@ describe("analysis API", () => {
     artifactCleanupPaths.push(directory);
     await mkdir(directory, { recursive: true });
     await writeFile(resolve(directory, "ndvi.png"), Buffer.from([137, 80, 78, 71]));
+    await writeFile(resolve(directory, "ndvi-older.png"), Buffer.from([137, 80, 78, 71]));
 
     await taskStore.save(taskWithLayer(fieldId, "11111111-1111-4111-8111-111111111111", "2026-08-16T10:00:00.000Z", `${directoryRef}/ndvi.png`));
     await taskStore.save(taskWithLayer(fieldId, "22222222-2222-4222-8222-222222222222", "2026-08-17T10:00:00.000Z", `${directoryRef}/missing.png`));
+    await taskStore.save(taskWithLayer(fieldId, "33333333-3333-4333-8333-333333333333", "2026-08-15T10:00:00.000Z", `${directoryRef}/ndvi-older.png`));
 
     const response = await app.inject({ method: "GET", url: `/api/v1/fields/${fieldId}/visualizations` });
     expect(response.statusCode).toBe(200);
-    expect(response.json().layers).toEqual([expect.objectContaining({
-      ref: `${directoryRef}/ndvi.png`,
-      taskId: "11111111-1111-4111-8111-111111111111",
-      visualization: expect.objectContaining({ source: "sentinel-2", metric: "ndvi", date: "2026-08-16" }),
-    })]);
+    expect(response.json().layers).toEqual([
+      expect.objectContaining({ ref: `${directoryRef}/ndvi.png`, taskId: "11111111-1111-4111-8111-111111111111",
+        visualization: expect.objectContaining({ source: "sentinel-2", metric: "ndvi", date: "2026-08-16" }) }),
+      expect.objectContaining({ ref: `${directoryRef}/ndvi-older.png`, taskId: "33333333-3333-4333-8333-333333333333",
+        visualization: expect.objectContaining({ source: "sentinel-2", metric: "ndvi", date: "2026-08-16" }) }),
+    ]);
     expect(response.json().charts).toEqual([expect.objectContaining({
       ref: "analysis/22222222-2222-4222-8222-222222222222/weather-rainfall",
       taskId: "22222222-2222-4222-8222-222222222222",

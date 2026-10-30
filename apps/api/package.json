@@ -11,6 +11,7 @@
     "knowledge:smoke": "tsx scripts/smoke-knowledge-mcp.ts",
     "knowledge:verify-local": "tsx scripts/verify-local-knowledge.ts",
     "writer:v6-rerun": "tsx scripts/republish-brief-writer-v6.ts",
+    "growth:optical-rerun": "tsx scripts/reanalyze-growth-optical.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src --exclude \"**/runtime/**\" && python -m unittest discover -s scripts/tests -p \"test_*.py\""
   },

@@ -2525,7 +2525,7 @@ function chartCatalogTitle(title: string): string {
 function uniqueVisualizationLayers(items: MapVisualizationLayer[]): MapVisualizationLayer[] {
   const layers = new Map<string, MapVisualizationLayer>();
   for (const item of items) {
-    const key = `${item.source}:${item.date}:${item.metric}`;
+    const key = `${item.taskId}:${item.source}:${item.date}:${item.metric}`;
     if (!layers.has(key)) layers.set(key, item);
   }
   return [...layers.values()];
