@@ -1722,10 +1722,11 @@ function TaskResult({ surface, field, task, acquisition, agentRun, analysisResul
 
 function FieldReportView({ report }: { report: ReturnType<typeof fieldReportPresentation> }) {
   const layer = report.heroMap;
+  const isContrastLayer = layer?.metric === "ndvi_contrast";
   return <section className="field-report" aria-label="田块分析图件">
     {layer ? <figure className="field-report-map">
       <img src={artifactUrl(layer.ref)} alt={`${layer.label} ${layer.date} 分析图`} />
-      <figcaption><strong>{layer.label}</strong><span>{formatShortDate(layer.date)} · {layer.resolutionMeters} 米</span></figcaption>
+      <figcaption><strong>{isContrastLayer ? "对比 NDVI · 田内差异" : layer.label}</strong><span>{isContrastLayer ? `拉伸范围 ${layer.min.toFixed(2)}–${layer.max.toFixed(2)}` : null}{isContrastLayer ? " · " : null}{formatShortDate(layer.date)} · {layer.resolutionMeters} 米</span></figcaption>
     </figure> : null}
     {report.mean !== null || report.std !== null ? <div className="field-report-stats" aria-label="指数统计">
       {report.mean !== null ? <div><small>平均 NDVI</small><strong>{report.mean.toFixed(3)}</strong></div> : null}
