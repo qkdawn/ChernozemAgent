@@ -381,6 +381,18 @@ describe("analysis document writer", () => {
     expect(await publishAnalysisBrief(input)).toEqual({ brief: input.brief, results: input.results });
   });
 
+  it("attaches a diagnostic report after writer publication", async () => {
+    const input = writingInput();
+    const results: AnalysisResult<unknown>[] = [{ ...input.results[0]!, kind: "assessment", result: {
+      latestObservationDate: "2026-07-31", belowAverageZoneCount: 0, weakZones: [],
+    } }];
+    const { brief } = await publishAnalysisBrief({ ...input, results, writer: {
+      provider: "test", modelId: "test-model", promptVersion: "test",
+      async write() { return { brief: { ...input.brief, document: { title: "分析", subtitle: "", sections: [] } }, results }; },
+    } });
+    expect(brief.diagnosticReport?.aiReport.generatedOn).toBe("2026-07-31");
+  });
+
   it("retains computed results if a writer unexpectedly throws", async () => {
     const input = writingInput();
     const { brief: generated } = await publishAnalysisBrief({ ...input, writer: {

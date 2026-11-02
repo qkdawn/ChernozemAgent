@@ -4,6 +4,11 @@ import { describe, expect, it } from "vitest";
 import { analysisBriefVisibleSections } from "./analysis-brief-presentation.js";
 
 describe("analysis brief visible sections", () => {
+  it("prefers a diagnostic report over essay sections", () => {
+    const sections = analysisBriefVisibleSections(brief({ overview: "旧概述", reasoning: "旧推理", actions: [action], document,
+      diagnosticReport: { aiReport: { generatedOn: "2026-10-29", summary: "全田接近平均" }, modules: [], recommendedNextStep: { summary: "巡田", bullets: [] } } }));
+    expect(sections).toMatchObject({ showDiagnosticReport: true, showOverview: false, showReasoning: false, showDocument: false, showActions: false });
+  });
   it("keeps overview and actions visible when a document is present", () => {
     const sections = analysisBriefVisibleSections(brief({ overview: "西南区域长势下降。", actions: [action], document }));
 

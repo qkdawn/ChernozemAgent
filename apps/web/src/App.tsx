@@ -1756,6 +1756,24 @@ function AnalysisBriefView({ brief }: { brief: AnalysisBrief }) {
   return <section className="result-decision-brief" aria-label="农情解读">
     {brief.generation.mode === "deterministic" ? <p className="brief-boundary" role="status">AI 解读未生成，当前展示计算摘要。</p> : null}
     {brief.reviewRequired ? <p className="brief-boundary" role="status">分析草稿待专业复核，处方性建议尚未发布。</p> : null}
+    {sections.showDiagnosticReport && brief.diagnosticReport ? <div className="diagnostic-report">
+      <div className="diagnostic-ai-report">
+        <header><strong>AI Report</strong><time dateTime={brief.diagnosticReport.aiReport.generatedOn}>{brief.diagnosticReport.aiReport.generatedOn}</time></header>
+        <p>{brief.diagnosticReport.aiReport.summary}</p>
+      </div>
+      <div className="diagnostic-modules">{brief.diagnosticReport.modules.map((module, index) => {
+        const firstReady = brief.diagnosticReport!.modules.findIndex((item) => item.status === "ready");
+        return <details key={module.id} open={index === firstReady}>
+        <summary><strong>{module.title}</strong><span>{module.status === "ready" ? "已分析" : module.status === "not_applicable" ? "不适用" : "证据不足"}</span></summary>
+        <p>{module.body}</p>
+      </details>;
+      })}</div>
+      <div className="diagnostic-next-step">
+        <span>Recommended Next Step</span>
+        <strong>{brief.diagnosticReport.recommendedNextStep.summary}</strong>
+        {brief.diagnosticReport.recommendedNextStep.bullets.length ? <ul>{brief.diagnosticReport.recommendedNextStep.bullets.map((bullet, index) => <li key={index}>{bullet}</li>)}</ul> : null}
+      </div>
+    </div> : null}
     {sections.showOverview ? <div className="brief-conclusion">
       <span>{brief.generation.mode === "deterministic" ? "观测结果" : "当前判断"}</span>
       <p>{brief.overview}</p>

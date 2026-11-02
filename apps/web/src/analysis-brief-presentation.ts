@@ -1,6 +1,7 @@
 import type { AnalysisBrief } from "@chernozem/contracts";
 
 export interface AnalysisBriefVisibleSections {
+  showDiagnosticReport: boolean;
   showOverview: boolean;
   showReasoning: boolean;
   showActions: boolean;
@@ -9,11 +10,13 @@ export interface AnalysisBriefVisibleSections {
 }
 
 export function analysisBriefVisibleSections(brief: AnalysisBrief): AnalysisBriefVisibleSections {
+  const showDiagnosticReport = Boolean(brief.diagnosticReport);
   return {
-    showOverview: Boolean(brief.overview.trim()),
-    showReasoning: Boolean(brief.reasoning.trim()),
-    showActions: brief.actions.length > 0,
-    showDocument: Boolean(brief.document),
+    showDiagnosticReport,
+    showOverview: !showDiagnosticReport && Boolean(brief.overview.trim()),
+    showReasoning: !showDiagnosticReport && Boolean(brief.reasoning.trim()),
+    showActions: !showDiagnosticReport && brief.actions.length > 0,
+    showDocument: !showDiagnosticReport && Boolean(brief.document),
     showEvidence: brief.evidence.length > 0,
   };
 }

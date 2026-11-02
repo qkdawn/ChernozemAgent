@@ -475,6 +475,22 @@ button:disabled { cursor: not-allowed; }
 .field-drawer.is-analysis > .drawer-head { min-height: 72px; }
 .result-scroll { display: flex; height: 100%; min-height: 0; flex-direction: column; padding: 0; background: #fff; }
 .result-scroll > * { flex: 0 0 auto; }
+.diagnostic-report { display: grid; gap: 10px; padding: 12px 0; }
+.diagnostic-ai-report, .diagnostic-modules, .diagnostic-next-step { min-width: 0; border: 1px solid #e0e7e2; background: #fff; }
+.diagnostic-ai-report, .diagnostic-next-step { padding: 14px; }
+.diagnostic-ai-report header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.diagnostic-ai-report header strong { color: #2d5038; font-size: 13px; }
+.diagnostic-ai-report time { color: #78857c; font-size: 10px; }
+.diagnostic-ai-report p, .diagnostic-modules p { margin: 9px 0 0; color: #3e4b42; font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.diagnostic-modules details + details { border-top: 1px solid #e7ece8; }
+.diagnostic-modules summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 10px 14px; cursor: pointer; }
+.diagnostic-modules summary strong { color: #35463a; font-size: 11px; }
+.diagnostic-modules summary span { flex: 0 0 auto; color: #78857c; font-size: 9px; }
+.diagnostic-modules details p { margin: 0; padding: 0 14px 13px; }
+.diagnostic-next-step { border-color: #a9ceb3; background: #f1f8f2; }
+.diagnostic-next-step > span { display: block; color: #427b50; font-size: 9px; font-weight: 800; }
+.diagnostic-next-step > strong { display: block; margin-top: 6px; color: #244c31; font-size: 12px; line-height: 1.5; }
+.diagnostic-next-step ul { margin: 8px 0 0; padding-left: 18px; color: #405548; font-size: 10px; line-height: 1.7; }
 
 .result-overview { padding: 22px 20px 18px; border-bottom: 1px solid #e1e6e2; }
 .result-context { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

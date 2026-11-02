@@ -3,6 +3,7 @@ import type { AnalysisBrief, AnalysisBriefAction, AnalysisObjective, AnalysisRes
 import type { GrowthAssessmentPayload } from "./analysis-tools.js";
 import type { FrostRiskPayload, WaterloggingAssessmentPayload, WaterNitrogenEvidencePayload } from "./multi-source-analysis.js";
 import { summarizeSpatialPriorityForBrief } from "./spatial-priority-presentation.js";
+import { buildDiagnosticReport } from "./diagnostic-report.js";
 
 const BRIEF_VERSION = "analysis-brief-v2" as const;
 
@@ -10,16 +11,20 @@ export function buildAnalysisBrief(objective: AnalysisObjective, results: Analys
   const assessment = results.find((result) => result.kind === "assessment");
   if (!assessment?.result || assessment.kind !== "assessment") return null;
 
+  let built: AnalysisBrief | null;
   switch (objective) {
     case "growth_stage_monitoring":
-      return isGrowthPayload(assessment.result) ? growthBrief(assessment as AnalysisResult<GrowthAssessmentPayload>) : null;
+      built = isGrowthPayload(assessment.result) ? growthBrief(assessment as AnalysisResult<GrowthAssessmentPayload>) : null; break;
     case "water_nitrogen_diagnosis":
-      return isWaterNitrogenPayload(assessment.result) ? waterNitrogenBrief(assessment as AnalysisResult<WaterNitrogenEvidencePayload>) : null;
+      built = isWaterNitrogenPayload(assessment.result) ? waterNitrogenBrief(assessment as AnalysisResult<WaterNitrogenEvidencePayload>) : null; break;
     case "waterlogging_detection":
-      return isWaterloggingPayload(assessment.result) ? waterloggingBrief(assessment as AnalysisResult<WaterloggingAssessmentPayload>) : null;
+      built = isWaterloggingPayload(assessment.result) ? waterloggingBrief(assessment as AnalysisResult<WaterloggingAssessmentPayload>) : null; break;
     case "frost_risk_warning":
-      return isFrostPayload(assessment.result) ? frostBrief(assessment as AnalysisResult<FrostRiskPayload>) : null;
+      built = isFrostPayload(assessment.result) ? frostBrief(assessment as AnalysisResult<FrostRiskPayload>) : null; break;
   }
+  if (!built) return null;
+  const diagnosticReport = buildDiagnosticReport(objective, results, built);
+  return diagnosticReport ? { ...built, diagnosticReport } : built;
 }
 
 function isGrowthPayload(value: unknown): value is GrowthAssessmentPayload {

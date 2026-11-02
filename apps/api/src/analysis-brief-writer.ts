@@ -1,5 +1,6 @@
 import type { AgronomyKnowledgeSearchPort, ControlledAnalysisTool, CodexStructuredRuntime } from "@chernozem/agent-runtime";
 import type { AnalysisBrief, AnalysisBriefAction, AnalysisBriefEvidence, AnalysisBriefFallbackReason, AnalysisResult, AnalysisTask } from "@chernozem/contracts";
+import { buildDiagnosticReport } from "./diagnostic-report.js";
 
 import { AnalysisEvidence, resultDescriptor, valueAtPointer } from "./analysis-evidence.js";
 import { openAnalysisEvidenceMcp } from "./analysis-evidence-mcp.js";
@@ -130,9 +131,18 @@ export function createCodexAnalysisBriefWriter(options: {
 }
 
 export async function publishAnalysisBrief(input: AnalysisBriefWritingInput & { writer?: AnalysisBriefWriter }): Promise<AnalysisBriefPublication> {
-  if (!input.writer) return { brief: input.brief, results: input.results };
-  try { return await input.writer.write(input); }
-  catch { return { brief: fallback(input.brief, input.writer, "model_error"), results: input.results }; }
+  let publication: AnalysisBriefPublication;
+  if (!input.writer) publication = { brief: input.brief, results: input.results };
+  else {
+    try { publication = await input.writer.write(input); }
+    catch { publication = { brief: fallback(input.brief, input.writer, "model_error"), results: input.results }; }
+  }
+  const { brief, results } = publication;
+  if (!brief.diagnosticReport) {
+    const diagnosticReport = buildDiagnosticReport(input.task.objective, results, brief);
+    if (diagnosticReport) brief.diagnosticReport = diagnosticReport;
+  }
+  return publication;
 }
 
 export const analysisWritingPrompt = `你是面向玉米种植户、合作社负责人和基层农技人员的农情分析员。你的任务不是把计算结果改写得更像报告，而是替用户完成一次农田判断：现在最值得关注什么、先去哪里看、现场看到什么会让判断改变。直接写有信息的中文分析文档。
