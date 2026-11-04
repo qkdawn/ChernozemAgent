@@ -185,6 +185,8 @@ export interface DiagnosticReport {
   aiReport: { generatedOn: string; summary: string };
   modules: DiagnosticModule[];
   recommendedNextStep: { summary: string; bullets: string[] };
+  timeSeries?: Array<{ date: string; metrics: Record<string, number> }>;
+  fieldStats?: { meanNdvi?: number; stdNdvi?: number; coveragePct?: number; zoneSummary?: string; belowAverageAreaHa?: number | null; threshold?: string; zoneCount?: number; fieldAreaHa?: number };
 }
 
 /** User-facing interpretation derived only from the task's structured analysis results. */

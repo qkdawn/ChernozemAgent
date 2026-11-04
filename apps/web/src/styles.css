@@ -482,6 +482,14 @@ button:disabled { cursor: not-allowed; }
 .diagnostic-ai-report header strong { color: #2d5038; font-size: 13px; }
 .diagnostic-ai-report time { color: #78857c; font-size: 10px; }
 .diagnostic-ai-report p, .diagnostic-modules p { margin: 9px 0 0; color: #3e4b42; font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.diagnostic-field-stats { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 9px; color: #607067; font-size: 10px; }
+.diagnostic-table-scroll { overflow-x: auto; margin: 8px 14px 12px; }
+.diagnostic-ai-report .diagnostic-table-scroll { margin: 10px 0 0; }
+.diagnostic-table-scroll table { width: 100%; border-collapse: collapse; font-size: 10px; white-space: nowrap; }
+.diagnostic-table-scroll caption { padding: 0 0 5px; color: #607067; text-align: left; font-size: 10px; }
+.diagnostic-table-scroll th, .diagnostic-table-scroll td { padding: 5px 7px; border-bottom: 1px solid #edf1ee; text-align: right; }
+.diagnostic-table-scroll th:first-child, .diagnostic-table-scroll td:first-child { text-align: left; }
+.diagnostic-evidence-notes { margin: 0; padding: 0 28px 12px; color: #728078; font-size: 10px; line-height: 1.55; }
 .diagnostic-modules details + details { border-top: 1px solid #e7ece8; }
 .diagnostic-modules summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; padding: 10px 14px; cursor: pointer; }
 .diagnostic-modules summary strong { color: #35463a; font-size: 11px; }

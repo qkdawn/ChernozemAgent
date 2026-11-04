@@ -1760,12 +1760,23 @@ function AnalysisBriefView({ brief }: { brief: AnalysisBrief }) {
       <div className="diagnostic-ai-report">
         <header><strong>AI Report</strong><time dateTime={brief.diagnosticReport.aiReport.generatedOn}>{brief.diagnosticReport.aiReport.generatedOn}</time></header>
         <p>{brief.diagnosticReport.aiReport.summary}</p>
+        {brief.diagnosticReport.fieldStats ? <div className="diagnostic-field-stats">
+          {brief.diagnosticReport.fieldStats.meanNdvi !== undefined ? <span>平均 NDVI {brief.diagnosticReport.fieldStats.meanNdvi.toFixed(3)}</span> : null}
+          {brief.diagnosticReport.fieldStats.stdNdvi !== undefined ? <span>标准差 {brief.diagnosticReport.fieldStats.stdNdvi.toFixed(4)}</span> : null}
+          {brief.diagnosticReport.fieldStats.coveragePct !== undefined ? <span>有效覆盖 {brief.diagnosticReport.fieldStats.coveragePct.toFixed(1)}%</span> : null}
+          {brief.diagnosticReport.fieldStats.zoneSummary ? <span>{brief.diagnosticReport.fieldStats.zoneSummary}</span> : null}
+        </div> : null}
+        {brief.diagnosticReport.timeSeries?.length ? <div className="diagnostic-table-scroll"><table><caption>可用光学观测</caption><thead><tr><th>日期</th>{["ndvi", "ndre", "reci", "msavi", "ndmi", "ndwi"].filter((metric) => brief.diagnosticReport!.timeSeries!.some((item) => item.metrics[metric] !== undefined)).map((metric) => <th key={metric}>{metric.toUpperCase()}</th>)}</tr></thead>
+          <tbody>{brief.diagnosticReport.timeSeries.map((item) => <tr key={item.date}><th>{item.date}</th>{["ndvi", "ndre", "reci", "msavi", "ndmi", "ndwi"].filter((metric) => brief.diagnosticReport!.timeSeries!.some((row) => row.metrics[metric] !== undefined)).map((metric) => <td key={metric}>{item.metrics[metric]?.toFixed(3) ?? "—"}</td>)}</tr>)}</tbody>
+        </table></div> : null}
       </div>
       <div className="diagnostic-modules">{brief.diagnosticReport.modules.map((module, index) => {
         const firstReady = brief.diagnosticReport!.modules.findIndex((item) => item.status === "ready");
         return <details key={module.id} open={index === firstReady}>
         <summary><strong>{module.title}</strong><span>{module.status === "ready" ? "已分析" : module.status === "not_applicable" ? "不适用" : "证据不足"}</span></summary>
         <p>{module.body}</p>
+        {module.metricDeltas?.length ? <div className="diagnostic-table-scroll"><table><caption>最近一期指数变化</caption><thead><tr><th>指数</th><th>观测日期</th><th>前期 → 本期</th><th>变化</th></tr></thead><tbody>{module.metricDeltas.map((item) => <tr key={item.metric}><th>{item.metric}</th><td>{item.fromDate} → {item.toDate}</td><td>{item.fromValue?.toFixed(3) ?? "—"} → {item.toValue?.toFixed(3) ?? "—"}</td><td>{item.delta >= 0 ? "+" : ""}{item.delta.toFixed(3)}</td></tr>)}</tbody></table></div> : null}
+        {module.evidenceNotes?.length ? <ul className="diagnostic-evidence-notes">{module.evidenceNotes.map((note, noteIndex) => <li key={noteIndex}>{note}</li>)}</ul> : null}
       </details>;
       })}</div>
       <div className="diagnostic-next-step">
