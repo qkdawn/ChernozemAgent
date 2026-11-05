@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { RasterDownloadRequest } from "./acquisition-downloaders.js";
-import { SentinelHubProcessDownloader, SENTINEL_2_BANDS } from "./acquisition-downloaders.js";
+import { DownloadError, SentinelHubProcessDownloader, SENTINEL_2_BANDS } from "./acquisition-downloaders.js";
 import { CopernicusDemProvider, createEra5LandRequests, DataAcquisitionService, demGridIds, EcmwfIfsProvider, Era5LandProvider, matchAcquisitionDate, SentinelStacProvider, SoilGridsProvider } from "./data-acquisition.js";
 import { PROFILE_SOURCES } from "./data-profiles.js";
 
@@ -233,6 +233,30 @@ describe("acquisition download workers", () => {
       expect(result.selectedAssets.length).toBeGreaterThan(0);
       expect(result.selectedAssets.every((asset) => asset.accessStatus === "retrieved" && asset.artifactRef && asset.checksum)).toBe(true);
     }
+  });
+
+  it.each([
+    { available12z: true, expectedRun: "2026-11-05T12:00:00.000Z", expectedHours: ["12"] },
+    { available12z: false, expectedRun: "2026-11-05T00:00:00.000Z", expectedHours: ["12", "00"] },
+  ])("discovers the latest IFS oper cycle when 12z availability is $available12z", async ({ available12z, expectedRun, expectedHours }) => {
+    const runId = `ifs-cycle-${Date.now()}-${available12z}`;
+    cleanupPaths.push(resolve(import.meta.dirname, "../../../runtime/artifacts/acquisitions", runId));
+    const requestedHours: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      const hour = url.match(/\/20261105\/(\d{2})z\/ifs\/0p25\/oper\//)?.[1];
+      if (hour) requestedHours.push(hour);
+      const available = hour === "00" || hour === "06" || hour === "18" || (hour === "12" && available12z);
+      return new Response(available ? `20261105${hour}0000-0h-oper-fc.grib2` : "not found", { status: available ? 200 : 404 });
+    }));
+    const retrieve = vi.fn(async () => { throw new Error("stop after discovery"); });
+
+    await expect(new EcmwfIfsProvider({ retrieve }).discover({
+      ...acquisitionContext(runId), now: new Date("2026-11-05T14:00:00.000Z"),
+    })).rejects.toThrow("stop after discovery");
+
+    expect(requestedHours).toEqual(expectedHours);
+    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ runAt: expectedRun }));
   });
 
   it("downloads a fully covered Sentinel-2 scene and judges quality only from field SCL", async () => {
@@ -527,8 +551,38 @@ describe("acquisition download workers", () => {
     });
     const era5 = result.sources.find((source) => source.source === "era5-land");
 
-    expect(era5).toMatchObject({ status: "partial", error: { code: "provider_unavailable" } });
+    expect(era5).toMatchObject({
+      status: "partial",
+      error: { code: "provider_unavailable" },
+      quality: { metadata: { upstreamError: "remaining month failed", httpStatus: null } },
+    });
     expect(era5?.selectedAssets).toEqual([checkpointAsset]);
+  });
+
+  it("keeps upstream failure detail in metadata while returning a generic forecast error", async () => {
+    const runs = new Map<string, DataAcquisitionRun>();
+    const upstreamMessage = `IFS index returned 404: ${"x".repeat(600)}`;
+    const service = new DataAcquisitionService({
+      async save(run) { runs.set(run.id, structuredClone(run)); },
+      async get(id) { return runs.get(id) ?? null; },
+      async latest() { return null; },
+      async list() { return []; },
+    }, [{
+      source: "ecmwf-ifs",
+      async discover() { throw new DownloadError(404, upstreamMessage); },
+    }]);
+
+    const result = await service.create(field(), {
+      fieldId: "field-1", boundaryVersion: 1, dataProfile: "field_baseline_v1",
+      period: acquisitionContext("unused").period,
+    });
+    const ifs = result.sources.find((source) => source.source === "ecmwf-ifs");
+
+    expect(ifs).toMatchObject({
+      status: "failed",
+      error: { code: "forecast_model_unavailable", message: "天气预报下载失败，可稍后重试。" },
+      quality: { metadata: { httpStatus: 404, upstreamError: upstreamMessage.slice(0, 500) } },
+    });
   });
 
   it("reuses the exact discovered DEM product and keeps boundary versions isolated", async () => {
