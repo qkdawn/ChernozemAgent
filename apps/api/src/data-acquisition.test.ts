@@ -7,8 +7,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RasterDownloadRequest } from "./acquisition-downloaders.js";
 import { SentinelHubProcessDownloader, SENTINEL_2_BANDS } from "./acquisition-downloaders.js";
 import { CopernicusDemProvider, createEra5LandRequests, DataAcquisitionService, demGridIds, EcmwfIfsProvider, Era5LandProvider, matchAcquisitionDate, SentinelStacProvider, SoilGridsProvider } from "./data-acquisition.js";
+import { PROFILE_SOURCES } from "./data-profiles.js";
 
 const cleanupPaths: string[] = [];
+
+describe("data acquisition profiles", () => {
+  it("collects all six product sources for growth-stage runs", () => {
+    expect(PROFILE_SOURCES.growth_stage_v1).toEqual(PROFILE_SOURCES.field_baseline_v1);
+    expect(PROFILE_SOURCES.growth_stage_v1).toEqual([
+      "sentinel-2", "sentinel-1", "copernicus-dem", "era5-land", "ecmwf-ifs", "soilgrids-250m",
+    ]);
+  });
+});
 
 afterEach(async () => {
   vi.unstubAllGlobals();
@@ -123,7 +133,7 @@ describe("acquisition download workers", () => {
       return new Response(fieldQualityGeoTiff(), { status: 200, headers: { "content-type": "image/tiff" } });
     }));
 
-    const downloader = new SentinelHubProcessDownloader("client", "secret");
+    const downloader = new SentinelHubProcessDownloader("client", "secret", process.env.PYTHON_EXECUTABLE ?? "python");
     const result = await downloader.retrieve("sentinel-2", {
       providerAssetId: "scene-1",
       capturedAt: "2026-08-05T02:00:00.000Z",
@@ -165,7 +175,7 @@ describe("acquisition download workers", () => {
       return new Response(zeroGeoTiff(), { status: 200, headers: { "content-type": "image/tiff" } });
     }));
 
-    const downloader = new SentinelHubProcessDownloader("client", "secret");
+    const downloader = new SentinelHubProcessDownloader("client", "secret", process.env.PYTHON_EXECUTABLE ?? "python");
     await expect(downloader.retrieve("sentinel-2", {
       providerAssetId: "scene-empty",
       capturedAt: "2026-08-05T02:00:00.000Z",

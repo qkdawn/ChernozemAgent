@@ -2,7 +2,7 @@ import type { AnalysisObjective, DataProfile, DataSource } from "@chernozem/cont
 
 export const PROFILE_SOURCES: Record<DataProfile, DataSource[]> = {
   field_baseline_v1: ["sentinel-2", "sentinel-1", "copernicus-dem", "era5-land", "ecmwf-ifs", "soilgrids-250m"],
-  growth_stage_v1: ["sentinel-2"],
+  growth_stage_v1: ["sentinel-2", "sentinel-1", "copernicus-dem", "era5-land", "ecmwf-ifs", "soilgrids-250m"],
   water_nitrogen_v1: ["sentinel-2", "sentinel-1", "copernicus-dem", "era5-land", "soilgrids-250m"],
   waterlogging_v1: ["sentinel-1", "copernicus-dem", "era5-land"],
   frost_risk_v1: ["copernicus-dem", "era5-land", "ecmwf-ifs"],

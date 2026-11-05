@@ -402,7 +402,7 @@ Workflow 的 start、step、tool 和 finish 事件映射到 `agent_run`、`task_
 | 农田积水灾害识别 | 强降雨过程、灾前/灾后 Sentinel-1、地块统计 | 积水多边形、受影响面积、观测时间、质量和核查优先级 | 具有合格雷达时相与覆盖；无基线或无覆盖时显式返回 |
 | 霜冻风险提前预警 | 温度预报、DEM/低洼性、生育期、历史气象 | 风险等级、空间高亮区、预警时效、触发依据 | 明确预报生成/有效时间和不确定性，不把风险预警写成灾害事实 |
 
-上表描述能力目标，不等于当前每条链路已经融合全部可选来源。V0.1 首条可执行长势链路固定为 `analyze_optical_condition -> estimate_crop_stage -> assess_growth_status`，其缺数补采 profile `growth_stage_v1` 当前只包含 Sentinel-2；雷达融合仍是后续升级，不能在现阶段结果或采集进度中暗示其已经参与。地块数据目录继续使用 `field_baseline_v1` 维护六类来源。
+上表描述能力目标，不等于当前每条链路已经融合全部可选来源。V0.1 首条可执行长势链路固定为 `analyze_optical_condition -> estimate_crop_stage -> assess_growth_status`；其缺数补采 profile `growth_stage_v1` 按产品清单采集六类来源，但当前长势等级仍由 Sentinel-2 光学资产分析，雷达、天气、地形和土壤进入长势结论仍是后续融合升级。地块数据目录也使用 `field_baseline_v1` 维护六类来源。
 
 Codex 对话和结果编辑运行在独立空目录和只读沙箱中，关闭网络、搜索和审批式扩权，不直接访问数据库、对象存储、供应商 API 或功能工具。数据库访问和 Python runner 调用隐藏在确定性 Workflow 的领域工具适配器内部。
 

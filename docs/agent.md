@@ -411,7 +411,7 @@ actions      有具体对象、目的和操作的下一步
 
 任务 API 只提交分析目标、地块、公开任务时段、当前边界版本的采集批次和用户明确选择的现场记录。`AnalysisToolsetFactory` 在领域边界内统一计算种植季光学窗口、单日雷达对比扩窗和水氮支持窗口，筛选相关采集批次，并严格按 `CORN_SKILLS` 声明的顺序返回完整工具集。缺少或重复注册必要工具会在任务启动前失败；没有任何采集批次、当前时段没有数据，或长势/水氮任务缺少同一日期的完整 Sentinel-2 光谱与 SCL 资产时返回 `needs_data`，不启动模型，并列出对应能力的数据配置、缺失来源和“打开地块数据”行动。采集批次存在只说明做过采集，不等于数据已经达到分析工具的前置条件。
 
-`needs_data` 行动同时携带后端生成的 `AnalysisNextAction.acquisitionRequest`。该计划冻结地块、边界版本、能力 profile 和时间窗口；前端点击后原样创建独立采集任务，不从自然语言反推来源。当前首条长势链路只执行 `analyze_optical_condition -> estimate_crop_stage -> assess_growth_status`，所以 `growth_stage_v1` 只补采 Sentinel-2；普通地块数据更新仍使用包含六类来源的 `field_baseline_v1`。Sentinel-1 长势融合属于后续 profile 升级，不作为当前链路已实现能力。
+`needs_data` 行动同时携带后端生成的 `AnalysisNextAction.acquisitionRequest`。该计划冻结地块、边界版本、能力 profile 和时间窗口；前端点击后原样创建独立采集任务，不从自然语言反推来源。`growth_stage_v1` 采集产品清单中的六类来源（Sentinel-2、Sentinel-1、Copernicus DEM、ERA5-Land、ECMWF IFS、SoilGrids），各来源的成功、部分可用或不可用状态按实际 provider 结果呈现在采集任务中。当前长势分析链路仍执行 `analyze_optical_condition -> estimate_crop_stage -> assess_growth_status`，只要求 Sentinel-2 光学资产满足分析门槛；其他来源尚未融合进长势等级或业务结论。
 
 生产功能执行器使用确定性 Workflow：按当前目标固定工具集合和顺序，校验任务与地块 scope，并把运行状态、受控工具步骤、结果引用、最终摘要或失败原因写入 `agent_runs` / `agent_run_events`。`GET /api/v1/tasks/:id/agent-run` 只返回稳定的用户可复查轨迹，不暴露内部配置、密钥或供应商响应。模型不能改变工具顺序、结构化计算结果或质量门；正文生成契约以第 7 节为准。生成失败不把已形成计算结果的任务标记为计算失败。
 

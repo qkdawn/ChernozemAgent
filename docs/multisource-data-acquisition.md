@@ -207,14 +207,14 @@ cec        # 阳离子交换量
 | 任务能力 | 默认采集角色 |
 | --- | --- |
 | 地块基础数据目录 | 六类来源全部检查；用于地块详情自动更新，不直接启动分析 |
-| 关键生育期长势监测 | 当前 `growth_stage_v1` 只采集 Sentinel-2，支撑首条光学时序链路；Sentinel-1 与 ERA5-Land 融合属于后续版本 |
+| 关键生育期长势监测 | `growth_stage_v1` 采集 Sentinel-2、Sentinel-1、Copernicus DEM、ERA5-Land、ECMWF IFS 和 SoilGrids，满足产品数据清单；长势结论当前仍由光学链路生成 |
 | 水氮协同诊断 | Sentinel-2 红边/SWIR、Sentinel-1、ERA5-Land、SoilGrids、DEM |
 | 农田积水灾害识别 | 灾前/灾后 Sentinel-1、ERA5-Land 事件降雨、DEM；Sentinel-2 可选 |
 | 霜冻风险提前预警 | ECMWF IFS、DEM；ERA5-Land 只作为长期低温背景 |
 
 模型不能自行增删来源；任务服务根据版本化 profile 生成来源集合。这样可以完整登记六类免费来源，又不会在每次任务中重复抓取历史天气、预报和土壤。
 
-`field_baseline_v1` 仍用于地块数据目录的六类来源更新，不等于每个分析任务都下载六类数据。当前首条真实链路固定为 `analyze_optical_condition -> estimate_crop_stage -> assess_growth_status`，因此 `growth_stage_v1` 只补齐 Sentinel-2 完整光谱与 SCL 资产；雷达和历史天气进入长势业务结论前，必须先完成时间对齐规则与真实样本验收，再升级 profile 版本。
+`field_baseline_v1` 用于地块数据目录更新；`growth_stage_v1` 也会按产品清单检查并采集六类来源，复用现有 providers/downloaders，并在 `run.sources` 与进度中保留各来源的实际状态。缺少凭据、覆盖或服务不可用时仍返回 provider 的真实状态，不伪装成功。当前首条真实链路固定为 `analyze_optical_condition -> estimate_crop_stage -> assess_growth_status`，长势分析仍以 Sentinel-2 光学资产为准；雷达、天气、地形和土壤进入长势业务结论前，仍需后续融合升级和验证。
 
 ### 3.4 设计与实现状态
 
