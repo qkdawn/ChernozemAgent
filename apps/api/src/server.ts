@@ -1,3 +1,4 @@
+import { setDefaultResultOrder } from "node:dns";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadEnvFile } from "node:process";
@@ -19,6 +20,9 @@ import { createPostgresAnalysisTaskStore } from "./task-store.js";
 import { createPostgresScoutingNoteStore } from "./scouting-store.js";
 import { createCodexFieldConversationAgent, createCodexTaskConversationAgent } from "./task-conversation-agent.js";
 import { createPostgresTaskConversationStore } from "./task-conversation-store.js";
+
+// ECMWF discovery can fail on Windows when undici tries IPv6 first.
+setDefaultResultOrder("ipv4first");
 
 const envPath = resolve(import.meta.dirname, "../../../.env");
 if (existsSync(envPath)) {
