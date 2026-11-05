@@ -37,6 +37,8 @@ import {
 } from "./acquisition-downloaders.js";
 
 const REQUEST_TIMEOUT_MS = 15_000;
+const IFS_DISCOVER_TIMEOUT_MS = 90_000;
+const IFS_LISTING_ATTEMPTS = 3;
 const MAX_OPTICAL_SCENES_PER_RUN = 12;
 const PROFILE_VERSION = "2026-08-19";
 
@@ -1442,6 +1444,9 @@ async function discoverDemProduct(dataset: string, gridId: string): Promise<ODat
 }
 
 async function discoverLatestIfsRun(now: Date): Promise<{ runAt: string; assetId: string } | null> {
+  const deadline = Date.now() + IFS_DISCOVER_TIMEOUT_MS;
+  let failedListings = 0;
+  let lastNetworkError: string | null = null;
   const candidates: Array<{ date: string; hour: number }> = [];
   for (let dayOffset = 0; dayOffset <= 2; dayOffset += 1) {
     const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayOffset));
@@ -1451,13 +1456,26 @@ async function discoverLatestIfsRun(now: Date): Promise<{ runAt: string; assetId
   for (const candidate of candidates) {
     const hour = candidate.hour.toString().padStart(2, "0");
     const directory = `https://data.ecmwf.int/forecasts/${candidate.date}/${hour}z/ifs/0p25/oper/`;
-    const response = await fetch(directory, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-    if (!response.ok) continue;
-    const html = await response.text();
     const assetId = `${candidate.date}${hour}0000-0h-oper-fc.grib2`;
-    if (!html.includes(assetId)) continue;
-    return { runAt: `${candidate.date.slice(0, 4)}-${candidate.date.slice(4, 6)}-${candidate.date.slice(6, 8)}T${hour}:00:00.000Z`, assetId };
+    for (let attempt = 1; attempt <= IFS_LISTING_ATTEMPTS; attempt += 1) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error(`IFS listing discover timed out after ${IFS_DISCOVER_TIMEOUT_MS / 1000}s; last error: ${lastNetworkError ?? "time budget exhausted"}`);
+      try {
+        const response = await fetch(directory, { signal: AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remaining)) });
+        if (!response.ok) break;
+        const html = await response.text();
+        if (html.includes(assetId)) {
+          return { runAt: `${candidate.date.slice(0, 4)}-${candidate.date.slice(4, 6)}-${candidate.date.slice(6, 8)}T${hour}:00:00.000Z`, assetId };
+        }
+        break;
+      } catch (error) {
+        lastNetworkError = `${candidate.date}/${hour}z: ${error instanceof Error ? error.message : String(error)}`;
+        if (attempt === IFS_LISTING_ATTEMPTS) failedListings += 1;
+        else await new Promise((resolve) => setTimeout(resolve, 100 * 2 ** (attempt - 1)));
+      }
+    }
   }
+  if (failedListings > 0) throw new Error(`IFS listing network failed for ${failedListings} candidate(s) after ${IFS_LISTING_ATTEMPTS} attempts; last error: ${lastNetworkError}`);
   return null;
 }
 

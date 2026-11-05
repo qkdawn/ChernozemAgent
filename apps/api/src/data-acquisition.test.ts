@@ -259,6 +259,74 @@ describe("acquisition download workers", () => {
     expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ runAt: expectedRun }));
   });
 
+  it("retries a thrown IFS listing request before selecting the 12z oper cycle", async () => {
+    const requestedHours: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const hour = String(input).match(/\/20261105\/(\d{2})z\/ifs\/0p25\/oper\//)?.[1];
+      if (hour) requestedHours.push(hour);
+      if (requestedHours.length === 1) throw new Error("fetch failed");
+      return new Response("20261105120000-0h-oper-fc.grib2", { status: 200 });
+    }));
+    const retrieve = vi.fn(async () => { throw new Error("stop after discovery"); });
+
+    await expect(new EcmwfIfsProvider({ retrieve }).discover({
+      ...acquisitionContext("ifs-retry"), now: new Date("2026-11-05T14:00:00.000Z"),
+    })).rejects.toThrow("stop after discovery");
+
+    expect(requestedHours).toEqual(["12", "12"]);
+    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ runAt: "2026-11-05T12:00:00.000Z" }));
+  });
+
+  it("continues to the 00z oper cycle after the 12z listing exhausts retries", async () => {
+    const requestedHours: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const hour = String(input).match(/\/20261105\/(\d{2})z\/ifs\/0p25\/oper\//)?.[1];
+      if (hour) requestedHours.push(hour);
+      if (hour === "12") throw new Error("fetch failed");
+      return new Response("20261105000000-0h-oper-fc.grib2", { status: 200 });
+    }));
+    const retrieve = vi.fn(async () => { throw new Error("stop after discovery"); });
+
+    await expect(new EcmwfIfsProvider({ retrieve }).discover({
+      ...acquisitionContext("ifs-next-cycle"), now: new Date("2026-11-05T14:00:00.000Z"),
+    })).rejects.toThrow("stop after discovery");
+
+    expect(requestedHours).toEqual(["12", "12", "12", "00"]);
+    expect(retrieve).toHaveBeenCalledWith(expect.objectContaining({ runAt: "2026-11-05T00:00:00.000Z" }));
+  });
+
+  it("records exhausted IFS listing network errors in the service result", async () => {
+    const requestedHours: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const hour = String(input).match(/\/(\d{2})z\/ifs\/0p25\/oper\//)?.[1];
+      if (hour) requestedHours.push(hour);
+      throw new Error("fetch failed");
+    }));
+    const retrieve = vi.fn();
+    const runs = new Map<string, DataAcquisitionRun>();
+    const service = new DataAcquisitionService({
+      async save(run) { runs.set(run.id, structuredClone(run)); },
+      async get(id) { return runs.get(id) ?? null; },
+      async latest() { return null; },
+      async list() { return []; },
+    }, [new EcmwfIfsProvider({ retrieve })]);
+
+    const result = await service.create(field(), {
+      fieldId: "field-1", boundaryVersion: 1, dataProfile: "field_baseline_v1",
+      period: acquisitionContext("unused").period,
+    });
+    const ifs = result.sources.find((source) => source.source === "ecmwf-ifs");
+
+    expect(requestedHours).toEqual(["12", "12", "12", "00", "00", "00", "12", "12", "12", "00", "00", "00", "12", "12", "12", "00", "00", "00"]);
+    expect(ifs).toMatchObject({
+      status: "failed", selectedAssets: [],
+      error: { code: "forecast_model_unavailable", retryable: true },
+      quality: { metadata: { upstreamError: expect.stringContaining("IFS listing network failed for 6 candidate(s) after 3 attempts") } },
+    });
+    expect(ifs?.quality.metadata.upstreamError).toContain("fetch failed");
+    expect(retrieve).not.toHaveBeenCalled();
+  });
+
   it("downloads a fully covered Sentinel-2 scene and judges quality only from field SCL", async () => {
     const runId = `cloudy-${Date.now()}`;
     const runtimeRoot = resolve(import.meta.dirname, "../../../runtime/artifacts/acquisitions", runId);
