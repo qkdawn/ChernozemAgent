@@ -29,6 +29,7 @@ def main() -> None:
     client.retrieve(
         date=run_at.strftime("%Y%m%d"),
         time=run_at.hour,
+        stream="oper",
         type="fc",
         levtype="sfc",
         step=forecast_steps(run_at.hour),

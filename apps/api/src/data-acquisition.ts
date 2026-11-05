@@ -184,7 +184,10 @@ export class DataAcquisitionService {
           ? {
               ...checkpoint,
               status: "partial",
-              quality: { ...checkpoint.quality, flags: [...new Set([...checkpoint.quality.flags, ...failure.quality.flags])] },
+              quality: {
+                flags: [...new Set([...checkpoint.quality.flags, ...failure.quality.flags])],
+                metadata: { ...checkpoint.quality.metadata, ...failure.quality.metadata },
+              },
               limitations: [...checkpoint.limitations, "后续数据获取失败，已完成文件仍然保留。"],
               error: failure.error,
             }
@@ -1156,9 +1159,10 @@ function unavailableProviderResult(source: DataSource, field: FieldSummary, peri
 function failedProviderResult(source: DataSource, field: FieldSummary, period: AcquisitionPeriod, now: Date, error: unknown): SourceAcquisitionResult {
   const metadata = sourceMetadata(source);
   const statusCode = error instanceof ProviderResponseError || error instanceof DownloadError ? error.status : null;
+  const upstreamError = error instanceof Error ? error.message.slice(0, 500) : null;
   const code = providerFailureCode(source, statusCode);
   const message = providerFailureMessage(source, code);
-  return sourceResult({ ...metadata, source, status: code === "provider_unauthorized" ? "needs_input" : "failed", period, discoveredAt: now.toISOString(), areaHa: field.areaHa, flags: [code], metadata: { httpStatus: statusCode }, limitations: ["本次没有取得该来源的可用目录结果。"], error: { code, retryable: code !== "provider_unauthorized", message }, license: { access: "unknown", downloadAllowed: false, attribution: null } });
+  return sourceResult({ ...metadata, source, status: code === "provider_unauthorized" ? "needs_input" : "failed", period, discoveredAt: now.toISOString(), areaHa: field.areaHa, flags: [code], metadata: { httpStatus: statusCode, upstreamError }, limitations: ["本次没有取得该来源的可用目录结果。"], error: { code, retryable: code !== "provider_unauthorized", message }, license: { access: "unknown", downloadAllowed: false, attribution: null } });
 }
 
 function providerFailureMessage(source: DataSource, code: string): string {
@@ -1442,7 +1446,7 @@ async function discoverLatestIfsRun(now: Date): Promise<{ runAt: string; assetId
   for (let dayOffset = 0; dayOffset <= 2; dayOffset += 1) {
     const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - dayOffset));
     const date = day.toISOString().slice(0, 10).replaceAll("-", "");
-    for (const hour of [18, 12, 6, 0]) candidates.push({ date, hour });
+    for (const hour of [12, 0]) candidates.push({ date, hour });
   }
   for (const candidate of candidates) {
     const hour = candidate.hour.toString().padStart(2, "0");
