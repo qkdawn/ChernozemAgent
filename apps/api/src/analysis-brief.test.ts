@@ -28,6 +28,7 @@ describe("buildAnalysisBrief", () => {
     expect(brief?.actions).toEqual([]);
     expect(brief?.reasoning).toContain("2026-07-21 到 2026-07-31");
     expect(brief?.document).toBeUndefined();
+    expect(brief?.diagnosticReport).toBeDefined();
   });
 
   it("finds the assessment by domain kind when investigation adds later results", () => {

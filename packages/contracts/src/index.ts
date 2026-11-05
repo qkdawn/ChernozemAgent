@@ -170,6 +170,25 @@ export interface AnalysisBriefGeneration {
   fallbackReason: AnalysisBriefFallbackReason | null;
 }
 
+export type DiagnosticModuleStatus = "ready" | "insufficient_evidence" | "not_applicable";
+
+export interface DiagnosticModule {
+  id: string;
+  title: string;
+  status: DiagnosticModuleStatus;
+  body: string;
+  evidenceNotes?: string[];
+  metricDeltas?: Array<{ metric: string; fromDate: string; toDate: string; delta: number; fromValue?: number; toValue?: number }>;
+}
+
+export interface DiagnosticReport {
+  aiReport: { generatedOn: string; summary: string };
+  modules: DiagnosticModule[];
+  recommendedNextStep: { summary: string; bullets: string[] };
+  timeSeries?: Array<{ date: string; metrics: Record<string, number> }>;
+  fieldStats?: { meanNdvi?: number; stdNdvi?: number; coveragePct?: number; zoneSummary?: string; belowAverageAreaHa?: number | null; threshold?: string; zoneCount?: number; fieldAreaHa?: number };
+}
+
 /** User-facing interpretation derived only from the task's structured analysis results. */
 export interface AnalysisBrief {
   version: "analysis-brief-v2";
@@ -185,6 +204,7 @@ export interface AnalysisBrief {
     subtitle: string;
     sections: AnalysisBriefDocumentSection[];
   };
+  diagnosticReport?: DiagnosticReport;
   generation: AnalysisBriefGeneration;
   /** Generated agronomic prescriptions remain a draft until professional review. */
   reviewRequired?: boolean;
