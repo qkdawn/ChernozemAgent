@@ -4,14 +4,21 @@ import { describe, expect, it } from "vitest";
 import { CornSkillRunner, type ControlledAnalysisTool } from "./skill-runner.js";
 
 describe("CornSkillRunner", () => {
-  it("executes only the growth skill tools in the fixed order with taskId-only input", async () => {
+  it("runs acquired-source evidence before the growth assessment in fixed order", async () => {
     const calls: string[] = [];
-    const names = ["analyze_optical_condition", "estimate_crop_stage", "assess_growth_status"] as const;
+    const names = ["analyze_optical_condition", "estimate_crop_stage", "analyze_radar_change", "analyze_weather_event", "analyze_terrain_susceptibility", "get_soil_background", "assess_growth_status"] as const;
     const tools = names.map((name) => ({
       name,
       async execute(input: { taskId: string }) {
         calls.push(`${name}:${input.taskId}`);
-        return result(input.taskId, name, name === "assess_growth_status" ? "assessment" : name === "estimate_crop_stage" ? "crop_stage" : "optical_condition");
+        const kind = name === "assess_growth_status" ? "assessment"
+          : name === "estimate_crop_stage" ? "crop_stage"
+          : name === "analyze_optical_condition" ? "optical_condition"
+          : name === "analyze_radar_change" ? "radar_change"
+          : name === "analyze_weather_event" ? "weather_event"
+          : name === "analyze_terrain_susceptibility" ? "terrain_susceptibility"
+          : "soil_background";
+        return result(input.taskId, name, kind);
       },
     })) as ControlledAnalysisTool[];
 
@@ -19,6 +26,10 @@ describe("CornSkillRunner", () => {
     expect(calls).toEqual([
       "analyze_optical_condition:task-1",
       "estimate_crop_stage:task-1",
+      "analyze_radar_change:task-1",
+      "analyze_weather_event:task-1",
+      "analyze_terrain_susceptibility:task-1",
+      "get_soil_background:task-1",
       "assess_growth_status:task-1",
     ]);
     expect(results.at(-1)?.kind).toBe("assessment");
@@ -29,7 +40,7 @@ describe("CornSkillRunner", () => {
   });
 
   it("rejects a tool result whose execution identity does not match the registered tool", async () => {
-    const names = ["analyze_optical_condition", "estimate_crop_stage", "assess_growth_status"] as const;
+    const names = ["analyze_optical_condition", "estimate_crop_stage", "analyze_radar_change", "analyze_weather_event", "analyze_terrain_susceptibility", "get_soil_background", "assess_growth_status"] as const;
     const tools = names.map((name) => ({
       name,
       async execute(input: { taskId: string }) {

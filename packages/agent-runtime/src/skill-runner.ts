@@ -24,11 +24,11 @@ export interface CornSkillDefinition {
 export const CORN_SKILLS: Record<AnalysisObjective, CornSkillDefinition> = {
   growth_stage_monitoring: {
     objective: "growth_stage_monitoring",
-    tools: ["analyze_optical_condition", "estimate_crop_stage", "assess_growth_status"],
+    tools: ["analyze_optical_condition", "estimate_crop_stage", "analyze_radar_change", "analyze_weather_event", "analyze_terrain_susceptibility", "get_soil_background", "assess_growth_status"],
     completionKind: "assessment",
     completionTool: "assess_growth_status",
     completionPrerequisites: ["analyze_optical_condition", "estimate_crop_stage"],
-    instruction: "先读取光学时序，再估计生育期，最后评估长势；不得用单期影像补造历史变化。",
+    instruction: "先读取光学时序并估计生育期，再读取可用雷达、天气、地形和土壤背景证据，最后评估长势；不得用单期影像补造历史变化。多源工具的部分或缺失结果必须保留其状态与限制。",
   },
   water_nitrogen_diagnosis: {
     objective: "water_nitrogen_diagnosis",
