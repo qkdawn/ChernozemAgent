@@ -31,51 +31,34 @@ describe("analysis document writer", () => {
     expect(JSON.stringify(request.input)).not.toContain("这是固定底稿");
     expect(JSON.stringify(request.input)).not.toContain("无条件先看低洼处");
     expect(request.systemPrompt).toContain("没有现场记录时");
-    expect(request.systemPrompt).toContain("时效/窗口结束/写作日≠田况/历史不可回验/无同期作物/不能用后茬或残茬替代");
-    expect(request.systemPrompt).toContain("B3 缺口也计入这一个句子");
+    expect(request.systemPrompt).toContain("读者句只写发现、对该田块的含义与下一步");
     expect(request.systemPrompt).toContain("距任务结束日期");
     expect(request.systemPrompt).toContain("不能靠文字推断");
     expect(request.systemPrompt).toContain("决策框架");
     expect(request.systemPrompt).toContain("/spatialPrioritySummary");
-    expect(request.systemPrompt).toContain("overview 和 document 必须明确说出雷达/低洼地形交集是否改变");
-    expect(request.systemPrompt).toContain("若成果目录没有 spatialPrioritySummary");
-    expect(request.systemPrompt).toContain("无法据此调整先看哪一块");
-    expect(request.systemPrompt).toContain("禁止写成「无水分问题」");
-    expect(request.systemPrompt).toContain("禁止写成「无水分问题」");
+    expect(request.systemPrompt).toContain("不可计算或没有该字段时省略交集排序");
     expect(request.systemPrompt).toContain("zoneRef 只能填写成果 zones/weakZones 中真实存在的分区 ID");
   });
 
   it("requires an action-first lead and concise decision-relevant evidence", () => {
-    expect(analysisWritingPrompt).toContain("headline 必须以先查哪里（面积称呼）+ 为何先这里开头");
-    expect(analysisWritingPrompt).toContain("不要用「截至某日」或「任务窗口」起句");
-    expect(analysisWritingPrompt).toContain("哪里 → 先做什么（等长样段核对对象）→ 最多一句必要限制");
-    expect(analysisWritingPrompt).toContain("日期只作短状语，不占首句");
-    expect(analysisWritingPrompt).toContain("最多 2—3 段，每段必须改变优先顺序或区分两弱区下一步记什么");
-    expect(analysisWritingPrompt).toContain("禁止无决策作用的指数清单堆砌与方法审计腔知识免责长段");
-    expect(analysisWritingPrompt).toContain("reasoning 用 2—4 句说明证据关系，不要写成审计日志");
+    expect(analysisWritingPrompt).toContain("headline 用一句话写田块发现与下一步");
+    expect(analysisWritingPrompt).toContain("reasoning 用 2—4 句说明证据关系");
     expect(analysisWritingPrompt).toContain("机器分区 ID 只放在结构化 zoneRef 字段");
   });
 
   it("merges B3 and historical caveats into a single limit without synonym stacking", () => {
-    expect(analysisWritingPrompt).toContain("headline、overview、reasoning、document、actions 和 uncertainty 合计最多一句限制");
-    expect(analysisWritingPrompt).toContain("限制只放在 overview 或「当前判断」末句，二选一，绝不能两处都写");
-    expect(analysisWritingPrompt).toContain("B3 与历史窗口限制同时适用时，合并为 overview 中的一句短限制");
-    expect(analysisWritingPrompt).toContain("后半句说「历史观测不能当作写作日田况」");
-    expect(analysisWritingPrompt).toContain("只有 B3 适用、没有历史时效问题时，一个 B3 短分句即可");
-    expect(analysisWritingPrompt).toContain("「先做什么」、decisionEffect 和 actions 不写限制");
-    expect(analysisWritingPrompt).toContain("禁止同义叠句");
+    expect(analysisWritingPrompt).toContain("evidenceNotes 只写日期、数值、来源、门槛、覆盖和质量标记");
     expect(analysisWritingPrompt).not.toContain("不计入限制句配额");
   });
 
   it("requires the first executable check and one matching A/B pair in document and actions", () => {
-    expect(analysisWritingPrompt).toContain("首段必须是可当场执行的步骤，写明到哪块（面积称呼）、对照哪块");
-    expect(analysisWritingPrompt).toContain("在两区各取等长且同行数的样段、记录株数与倒伏/裸土、同叶位叶色和同深度干湿");
+    expect(analysisWritingPrompt).toContain("每个 action 写明对象、目的、实际操作和结果如何改变判断");
     expect(analysisWritingPrompt).toContain("「先做什么」与第一条 action 必须同指上述首组核对");
     expect(analysisWritingPrompt).toContain("actions[0].checklist 写具体记录项");
     expect(analysisWritingPrompt).toContain("「结果如何改变判断」与 actions[0].decisionEffect 只给第一项核对的一对互斥 A/B");
     expect(analysisWritingPrompt).toContain("第二弱区最多一句「完成首组后再用同法补测」");
     expect(analysisWritingPrompt).toContain("每个 action 的 decisionEffect 必填，写成「若 A …；若 B …」");
-    expect(analysisWritingPrompt).toContain("顶层 actions 数组必须返回，不能只在 document 写 A/B 而省略 actions");
+    expect(analysisWritingPrompt).toContain("顶层 actions 数组必须返回");
   });
 
   it("fills model-empty actions from the deterministic brief", async () => {
