@@ -85,8 +85,10 @@ function growthBrief(assessment: AnalysisResult<GrowthAssessmentPayload>): Analy
   const result = assessment.result!;
   const weakArea = result.belowAverageAreaHa === null ? null : `${result.belowAverageAreaHa.toFixed(2)} 公顷`;
   const weakShare = result.belowAverageAreaFraction === null ? "" : `（占 ${(result.belowAverageAreaFraction * 100).toFixed(1)}%）`;
-  const headline = `${result.latestObservationDate} 长势观测：${result.belowAverageZoneCount ? weakArea ? `约 ${weakArea}相对偏弱` : `${result.belowAverageZoneCount} 个同日相对偏弱区` : "可用范围内未检出明显田内差异"}`;
-  const overview = `${result.latestObservationDate} 观测覆盖地块 ${(result.validCoverageFraction * 100).toFixed(1)}%，地块平均 NDVI ${result.meanNdvi.toFixed(3)}${result.stage ? `，估计处于${result.stage.label}` : ""}。${result.belowAverageZoneCount ? `田内 ${result.belowAverageZoneCount} 个同日相对偏弱分区，${weakArea ? `合计约 ${weakArea}${weakShare}` : "面积尚未计算"}。` : "可用范围内未检出明显田内相对弱区。"}`;
+  const field = result.areaBasis?.fieldAreaHa ? `约${result.areaBasis.fieldAreaHa.toFixed(2)}公顷田块` : "该田块";
+  const next = result.belowAverageZoneCount ? "下一步到图示偏弱区与邻近整齐处做对照样段" : "下一步到目测较稀或裸土较多处与邻近整齐处做对照样段";
+  const headline = `${field}最新光学分区${result.belowAverageZoneCount ? weakArea ? `划出约${weakArea}相对偏弱区` : `划出${result.belowAverageZoneCount}个相对偏弱区` : "未划出可排序偏弱区"}；${next}`;
+  const overview = `${field}在${result.latestObservationDate}的光学分区中${result.belowAverageZoneCount ? `划出${result.belowAverageZoneCount}个相对偏弱区，${weakArea ? `合计约${weakArea}${weakShare}` : "面积待计算"}` : "归为近平均，未划出可排序偏弱区"}。全田平均 NDVI ${result.meanNdvi.toFixed(3)}，有效覆盖 ${(result.validCoverageFraction * 100).toFixed(1)}%。${result.latestChange ? `${result.latestChange.fromDate}至${result.latestChange.toDate} NDVI变化${result.latestChange.ndviDelta >= 0 ? "+" : ""}${result.latestChange.ndviDelta.toFixed(3)}。` : ""}${next}，记录株数、倒伏、裸土、同叶位叶色和同深度土壤干湿。`;
   const change = result.latestChange ? `${result.latestChange.fromDate} 到 ${result.latestChange.toDate}，地块平均 NDVI 变化 ${result.latestChange.ndviDelta >= 0 ? "+" : ""}${result.latestChange.ndviDelta.toFixed(3)}。` : "当前只有一个可用观测日期，尚无跨期变化统计。";
   const spatial = (result.weakZones ?? []).map((zone) => `偏弱分区 ${zone.rank}：${zone.areaHa === null ? "面积尚未计算" : `${zone.areaHa.toFixed(2)} 公顷`}${zone.meanNdvi === null ? "" : `，NDVI ${zone.meanNdvi.toFixed(3)}`}${zone.deviation === null ? "" : `，与全田同日均值相差 ${zone.deviation.toFixed(3)}`}。`).join("");
   const zoneChange = result.zoneChange;

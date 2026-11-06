@@ -18,12 +18,12 @@ describe("buildAnalysisBrief", () => {
 
     expect(brief).toMatchObject({
       version: "analysis-brief-v2",
-      headline: "2026-07-31 长势观测：约 1.24 公顷相对偏弱",
+      headline: "该田块最新光学分区划出约1.24 公顷相对偏弱区；下一步到图示偏弱区与邻近整齐处做对照样段",
       uncertainty: null,
       generation: { mode: "deterministic", fallbackReason: null },
     });
     expect(brief?.overview).toContain("1.24 公顷（占 15.1%）");
-    expect(brief?.overview).toContain("覆盖地块 92.0%");
+    expect(brief?.overview).toContain("有效覆盖 92.0%");
     expect(brief?.reasoning).toContain("偏弱分区 1：0.44 公顷，NDVI 0.640，与全田同日均值相差 -0.070");
     expect(brief?.actions).toEqual([]);
     expect(brief?.reasoning).toContain("2026-07-21 到 2026-07-31");
