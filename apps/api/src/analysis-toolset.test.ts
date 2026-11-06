@@ -16,7 +16,7 @@ describe("AnalysisToolsetFactory", () => {
       acquisitions: [run("june", "2026-06-10", "2026-06-20"), run("old", "2025-08-01", "2025-08-10")],
     });
 
-    expect(toolset.tools.map((tool) => tool.name)).toEqual(["analyze_optical_condition", "estimate_crop_stage", "assess_growth_status"]);
+    expect(toolset.tools.map((tool) => tool.name)).toEqual(["analyze_optical_condition", "estimate_crop_stage", "analyze_radar_change", "analyze_weather_event", "analyze_terrain_susceptibility", "get_soil_background", "assess_growth_status"]);
     expect(toolset.investigationTools.map((tool) => tool.name)).toEqual([
       "analyze_optical_condition", "estimate_crop_stage", "analyze_radar_change", "analyze_weather_event", "analyze_terrain_susceptibility", "get_soil_background",
     ]);

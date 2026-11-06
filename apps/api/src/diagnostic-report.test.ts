@@ -64,6 +64,48 @@ describe("buildDiagnosticReport", () => {
     expect(report.modules.find((item) => item.id === "water-disease-risk")).toMatchObject({ status: "insufficient_evidence", body: expect.stringContaining("缺少直接证据") });
     expect(report.modules).toHaveLength(6);
   });
+  it("uses acquired multi-source evidence with source-specific limits and keeps scouting gaps", () => {
+    const sourceResult = (kind: AnalysisResult<unknown>["kind"], data: unknown, status: AnalysisResult<unknown>["status"] = "succeeded"): AnalysisResult<unknown> => ({
+      ...assessment({}), kind, status, summary: `${kind} summary`, result: data,
+      sources: [{ source: kind === "weather_event" ? "era5-land" : kind === "terrain_susceptibility" ? "copernicus-dem" : kind === "soil_background" ? "soilgrids-250m" : kind === "radar_change" ? "sentinel-1" : "field_record", date: "2026-06-01", quality: "usable", note: "test source" }],
+    });
+    const weather = sourceResult("weather_event", {
+      historical: { start: "2026-06-01", end: "2026-06-30", totalRainfallMm: 40, max24hRainfallMm: 18, minTemperatureC: 8 },
+      forecast: { runAt: "2026-07-01T00:00:00Z", start: "2026-07-01", end: "2026-07-05", minTemperatureC: 5, cumulativeRainfallMm: 12 },
+    });
+    const terrain = sourceResult("terrain_susceptibility", { metrics: { minElevationM: 100, maxElevationM: 120 }, zones: [{ class: "low" }] });
+    const soil = sourceResult("soil_background", { available: true, resolutionMeters: 250, properties: ["pH", "SOC"], measurements: [{ label: "pH", mean: 6.4, unit: "" }] });
+    const radar = sourceResult("radar_change", { comparable: false, afterDate: "2026-06-20", observations: [{ date: "2026-06-20", meanVvDb: -12 }], zones: [] }, "partial");
+    const stage = sourceResult("crop_stage", { label: "拔节期", referenceDate: "2026-06-20", daysAfterPlanting: 46, confidence: "medium", ruleVersion: "corn-days-after-planting-v1" });
+    const optical = sourceResult("optical_condition", { current: { quality: { validFraction: 0.8, cloudAffectedFraction: 0.2, flags: ["cloud_contaminated"] } } });
+    const report = buildDiagnosticReport("growth_stage_monitoring", [assessment(base), weather, terrain, soil, radar, stage, optical])!;
+    const conditions = report.modules.find((item) => item.id === "current-conditions")!;
+    expect(conditions.status).toBe("ready");
+    expect(conditions.body).toContain("ERA5-Land");
+    expect(conditions.body).toContain("不是预报");
+    expect(conditions.body).toContain("ECMWF IFS 预报");
+    expect(conditions.body).toContain("不混作历史事实");
+    expect(conditions.body).toContain("DEM 约 30 米");
+    expect(conditions.body).toContain("微地形");
+    expect(conditions.body).toContain("SoilGrids 约 250 米");
+    expect(conditions.body).toContain("不替代土壤化验");
+    expect(conditions.body).toContain("Sentinel-1");
+    expect(conditions.body).toContain("没有可比变化对");
+    expect(conditions.body).toContain("现场巡田、土壤化验和农事操作记录仍缺失");
+    expect(conditions.evidenceNotes?.join(" ")).toContain("cloud_contaminated");
+    const stageModule = report.modules.find((item) => item.id === "growth-stage-estimate")!;
+    expect(stageModule.evidenceNotes?.join(" ")).toContain("corn-days-after-planting-v1");
+    expect(stageModule.evidenceNotes?.join(" ")).toContain("播期来源：field_record（2026-06-01）");
+  });
+  it("retains honest gaps when acquired-source analysis results are absent", () => {
+    const failedWeather: AnalysisResult<unknown> = { ...assessment({}), kind: "weather_event", status: "failed", summary: "天气数据处理未完成。", result: null };
+    const report = buildDiagnosticReport("growth_stage_monitoring", [assessment(base), failedWeather])!;
+    const conditions = report.modules.find((item) => item.id === "current-conditions")!;
+    expect(conditions.status).toBe("insufficient_evidence");
+    expect(conditions.body).toMatch(/缺少可用的气象与环境分析结果/);
+    expect(conditions.body).toContain("天气分析失败");
+    expect(conditions.body).toContain("现场巡田、土壤化验和农事操作记录仍是缺口");
+  });
   it("attaches the report to a deterministic growth brief", () => {
     expect(buildAnalysisBrief("growth_stage_monitoring", [assessment(base)])?.diagnosticReport?.aiReport.generatedOn).toBe("2026-10-29");
   });

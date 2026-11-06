@@ -961,12 +961,9 @@ describe("analysis API", () => {
         promptVersion: "analysis-brief-writer-v1",
         async write({ brief, task, results }) {
           expect(task.fieldId).toBe(results[0]?.execution.scope.fieldId);
-          expect(results.map((result) => result.kind)).toEqual(["optical_condition", "crop_stage", "assessment"]);
+          expect(results.map((result) => result.kind)).toEqual(["optical_condition", "crop_stage", "radar_change", "weather_event", "terrain_susceptibility", "soil_background", "assessment"]);
           expect(await taskStore.get(task.id)).toMatchObject({ status: "running", progress: 90, stage: "正在比较观测结果并撰写农情分析" });
-          const investigation: AnalysisResult<unknown> = { ...results[0]!, id: `${task.id}-extra-weather`, kind: "weather_event", status: "needs_data",
-            execution: { ...results[0]!.execution, toolName: "analyze_weather_event" }, result: null };
-          await analysisResultStore.save(investigation);
-          return { results: [...results, investigation], brief: {
+          return { results, brief: {
             ...brief,
             overview: `专业分析：${brief.overview}`,
             reviewRequired,
@@ -1010,7 +1007,7 @@ describe("analysis API", () => {
     expect(task.json().brief.overview).toContain("覆盖地块 100.0%");
     expect(task.json().nextActions).toEqual([]);
     const analysis = await app.inject({ method: "GET", url: `/api/v1/tasks/${taskId}/analysis` });
-    expect(analysis.json().results.map((result: { kind: string }) => result.kind)).toEqual(["optical_condition", "crop_stage", "assessment", "weather_event"]);
+    expect(analysis.json().results.map((result: { kind: string }) => result.kind)).toEqual(["optical_condition", "crop_stage", "radar_change", "weather_event", "terrain_susceptibility", "soil_background", "assessment"]);
     expect(analysis.json().results[0]).toMatchObject({ result: { changes: [{ fromDate: "2026-06-16", toDate: "2026-06-26" }] } });
     expect(analysis.json().results[0].artifacts[0]).toMatchObject({ kind: "map" });
     expect(analysis.json().results[0].artifacts.filter((artifact: { kind: string }) => artifact.kind === "chart")).toHaveLength(6);
